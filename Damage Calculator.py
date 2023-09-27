@@ -7,7 +7,7 @@
 #-----------------------------------------------------------------------------------#
 #               return "Reset" = remove ALL tiles in equation                       #
 #       return "Continue" = equation is not completed need to get more tiles        #
-#            return INT_NUMBER = the damage that deal from equation                 #
+#            return NUMBER = the damage that deal from equation                 #
 #                                                                                   #
 #       *TILES* meaning numbers and operators such as 1, 2, 78, +, *, and more      #
 #-----------------------------------------------------------------------------------#
