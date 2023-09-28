@@ -1,0 +1,1 @@
+{"Coins": 2500, "Length of Equation": 5, "Inventory Slot": 3}
