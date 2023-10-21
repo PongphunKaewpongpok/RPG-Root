@@ -1,1 +1,1 @@
-{"Coins": 2500, "Length of Equation": 5, "Inventory Slot": 3}
+{"Coins": 2500, "Length of Equation": 5, "Inventory Slot": 3, "Most Damage": 0, "Most Damage Equation": "", "Max Health": 1}
