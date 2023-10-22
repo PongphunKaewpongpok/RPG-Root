@@ -1,1 +1,1 @@
-# This folder is used to store game data
+# This folder is used to store player in-game data
