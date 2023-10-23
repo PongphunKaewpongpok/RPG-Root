@@ -1,1 +1,1 @@
-
+"Folder for Silkscreen fonts."
