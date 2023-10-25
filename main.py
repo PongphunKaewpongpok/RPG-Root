@@ -95,6 +95,7 @@ for i in range(0, 6):
     smallroot_animate = pygame.image.load(f'Texture/Entitys/Small_Root/{i}.png').convert_alpha()
     small_root_animation.append(smallroot_animate)
 smallroot_frame = 0
+enemy_spawn_time = 60
 
 ###Tiles On Ground
 TILE_TYPE = []
@@ -122,6 +123,84 @@ black_heart = pygame.image.load('Texture/Others/Heart/Black_Heart.png').convert_
 HEALTH_LEFT = []
 for _ in range(UPGRADE_DATA_DICT["Max Health"]):
     HEALTH_LEFT.append(red_heart)
+hit_delay_time = 0
+
+#Inventory Background Asset
+inventory_bg_image = pygame.image.load('Texture/Others/Inventory_BG.png').convert_alpha()
+
+#Select Tile Asset
+select_tile_image_list = []
+for i in range(0, 2):
+    TEM_IMAGE = pygame.image.load(f'Texture/Tiles/Select/{i}.png').convert_alpha()
+    select_tile_image_list.append(TEM_IMAGE)
+select_inven_frame = 0
+
+
+
+#Function Code Zone#
+
+def enemy_movement():
+    #Enemy Movement
+    for i in range(0, len(ENEMY_TYPE)):
+        if ENEMY_TYPE[i] == "smallroot" and int(smallroot_frame) < 4:
+            TEM_X_DIST = player_hitbox.x - ENEMY_POS[i].x
+            TEM_Y_DIST = -(player_hitbox.y - ENEMY_POS[i].y)
+            TEM_RADIAN = math.atan2(TEM_Y_DIST, TEM_X_DIST)
+            ENEMY_POS[i].x += math.cos(TEM_RADIAN)
+            ENEMY_POS[i].y += -(math.sin(TEM_RADIAN))
+
+def display_enemy():
+    global hit_delay_time
+    for i in range(0, len(ENEMY_TYPE)):
+        TEM_HITBOX = ENEMY_POS[i]
+        if ENEMY_TYPE[i] == "smallroot":
+            TEM_ENEMY_IMAGE = smallroot_sprite
+        if TEM_HITBOX.colliderect(player_hitbox) and hit_delay_time == 0:
+            hit_delay_time = 60
+            for j in range(len(HEALTH_LEFT)-1, -1, -1):
+                if HEALTH_LEFT[j] == red_heart:
+                    HEALTH_LEFT[j] = black_heart
+                    break
+        game_screen.blit(TEM_ENEMY_IMAGE, ENEMY_POS[i])
+
+def creating_enemy(types, count):
+    for _ in range(count):
+        ENEMY_TYPE.append(types)
+        ENEMY_EQUATION.append("")
+        if types == "smallroot":
+            TEM_HITBOX = smallroot_sprite.get_rect()
+        TEM_HITBOX.x = random.randint(100, SCREEN_WEIGHT-200)
+        TEM_HITBOX.y = random.randint(100, SCREEN_WEIGHT-200)
+        ENEMY_POS.append(TEM_HITBOX)
+
+def display_select_inven_tile():
+    #Display Selecting Inventory Tiles
+    game_screen.blit(select_tile_image_list[int(select_inven_frame)], (1305, 60*(SELECT_TILE-1)))
+
+def display_inventory_tiles():
+    #Display Inventory Tiles
+    for i in range(0, len(inventory_list)):
+        TEM_VAR = inventory_list[i]
+        if isinstance(TEM_VAR, int):
+            TEM_INVEN_TILE = shoot_tile_image_list[TEM_VAR]
+        elif TEM_VAR == "plus":
+            TEM_INVEN_TILE = shoot_tile_image_list[10]
+        elif TEM_VAR == "minus":
+            TEM_INVEN_TILE = shoot_tile_image_list[11]
+        elif TEM_VAR == "times":
+            TEM_INVEN_TILE = shoot_tile_image_list[12]
+        elif TEM_VAR == "obelus":
+            TEM_INVEN_TILE = shoot_tile_image_list[13]
+        elif TEM_VAR == "equal":
+            TEM_INVEN_TILE = shoot_tile_image_list[14]
+        elif TEM_VAR == "power":
+            TEM_INVEN_TILE = shoot_tile_image_list[15]
+        game_screen.blit(TEM_INVEN_TILE, (1305, 60*i))
+
+def display_health():
+    #Display Health Bar
+    for i in range(0, len(HEALTH_LEFT)):
+        game_screen.blit(HEALTH_LEFT[i], (10+(50*i), 10))
 
 def fire_chamber_time(start_from=0):
     for i in range(start_from, len(FIRE_CHAM_TIME)):
@@ -200,11 +279,14 @@ def moving_shoot_tile():
 def shoot_tile():
     #Detect Shooting Tile
     global SELECT_TILE, SHOOT_DELAY_TIME
-    if keys[pygame.K_e] and SELECT_TILE > 0 and SHOOT_DELAY_TIME == 0:
+    if keys[pygame.K_e] and SELECT_TILE > 0 and SHOOT_DELAY_TIME == 0 and len(inventory_list) > 0:
         SHOOT_DELAY_TIME = 15
         types = inventory_list[SELECT_TILE-1]
         inventory_list.pop(SELECT_TILE-1)
-        SELECT_TILE -= 1
+        if SELECT_TILE > 1 and SELECT_TILE > len(inventory_list)-1:
+            SELECT_TILE -= 1
+        elif SELECT_TILE == 1:
+            SELECT_TILE = 1
         if isinstance(types, int):
             TEM_TILE_IMAGE = shoot_tile_image_list[types]
         elif types == "plus":
@@ -227,9 +309,6 @@ def shoot_tile():
         SHOOT_TILE_FIRE.append(False)
         TEM_MOVE_TUPLE = (math.cos(wand_radian)*10, -(math.sin(wand_radian)*10))
         SHOOT_TILE_VEL.append(TEM_MOVE_TUPLE)
-
-def creating_enemy(types):
-    ENEMY_TYPE.append(types)
 
 def spawn_tiles():
     global TILE_COUNT
@@ -341,10 +420,20 @@ def smallroot_frame_animate():
     else:
         smallroot_frame += 0.1
 
+def select_inven_animate():
+    global select_inven_frame
+    if select_inven_frame >= 1.9:
+        select_inven_frame = 0
+    else:
+        select_inven_frame += 0.1
+
 def shoot_delay_func():
     global SHOOT_DELAY_TIME
     if SHOOT_DELAY_TIME > 0:
         SHOOT_DELAY_TIME -= 1
+
+
+#Game Running Zone#
 
 while playing:
     global keys
@@ -361,22 +450,18 @@ while playing:
         #----------------------------------------------------------------#
         if event.type == pygame.MOUSEBUTTONDOWN:
             if len(inventory_list) > 1:
-                if event.button == 4:
+                if event.button == 5:
                     if SELECT_TILE < len(inventory_list):
                         SELECT_TILE += 1
-                        print(SELECT_TILE)
                     else:
                         SELECT_TILE = 1
-                        print(SELECT_TILE)
-                elif event.button == 5:
+                elif event.button == 4:
                     if SELECT_TILE > 1:
                         SELECT_TILE -= 1
-                        print(SELECT_TILE)
                     else:
                         SELECT_TILE = len(inventory_list)
-                        print(SELECT_TILE)
-        if len(inventory_list) == 1:
-            SELECT_TILE = 1
+    if len(inventory_list) in [0, 1]:
+        SELECT_TILE = len(inventory_list)
     #Player Movement
     move_speed_set()
     if keys[pygame.K_w]:
@@ -388,11 +473,19 @@ while playing:
     if keys[pygame.K_d]:
         player_hitbox.x += MOVEMENT_SPEED
 
+    #Enemy Movement
+    enemy_movement()
+
     #Shooting Delay Time
     shoot_delay_func()
 
     #Moving Shooting Tile
     moving_shoot_tile()
+
+    #Hit Delay
+    if hit_delay_time > 0:
+        hit_delay_time -= 1
+    print(hit_delay_time)
 
     #Mouse Detection
     mouse_detect_func()
@@ -408,6 +501,9 @@ while playing:
     global fire_chamber_sprite
     fire_cham_frame_animate()
     fire_chamber_sprite = fire_chamber_animate[int(fire_chamber_frame)]
+
+    #Select Inventory Animation
+    select_inven_animate()
 
     #Position Detect First Time
     if first_time:
@@ -432,10 +528,6 @@ while playing:
     #Wand Blit
     game_screen.blit(wand_display, wand_hitbox)
 
-    #Enemy Touch Detecting
-    for i in range(0, len(ENEMY_TYPE)):
-        enemy_touching(i)
-
     #Spawning Tiles Around The Map
     if spawn_tile_time == 0 and TILE_COUNT < LIMIT_TILE_GROUND:
         spawn_tiles()
@@ -449,8 +541,16 @@ while playing:
     #Small Root Animation
     smallroot_frame_animate()
     smallroot_sprite = small_root_animation[int(smallroot_frame)]
-    for i in range(0, len(ENEMY_TYPE)):
-        game_screen.blit(smallroot_sprite, (ENEMY_POS.x, ENEMY_POS.y))
+
+    #Summon Enemy Smallroot
+    if enemy_spawn_time == 0:
+        creating_enemy("smallroot", 1)
+        enemy_spawn_time = 300
+    else:
+        enemy_spawn_time -= 1
+
+    #Display Enemy
+    display_enemy()
 
     #Shooting Tile
     shoot_tile()
@@ -469,6 +569,24 @@ while playing:
             make_flame_tile(i)
             display_shoot_tile(i)
 
+    #Player Sprite Blit
     game_screen.blit(player_sprite, player_hitbox)
+
+    #Health Bar Blit
+    display_health()
+
+    #Inventory Background Blit
+    game_screen.blit(inventory_bg_image, (1280, 0))
+
+    #Inventory Tiles Blit
+    display_inventory_tiles()
+
+    #Select Inventory Blit 
+    display_select_inven_tile()
+
+    #Health Left Check
+    if not red_heart in HEALTH_LEFT:
+        print("DEAD")
+
     pygame.time.delay(30)
     pygame.display.update()
