@@ -1,1 +1,1 @@
-"Folder for TH KoHo fonts."
+# Folder for TH KoHo fonts.

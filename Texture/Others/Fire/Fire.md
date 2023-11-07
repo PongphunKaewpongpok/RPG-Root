@@ -1,1 +1,1 @@
-"Folder for Fire's textures."
+# Folder for Fire's textures.

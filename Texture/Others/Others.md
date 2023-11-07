@@ -1,1 +1,1 @@
-"Folder for Silkscreen fonts."
+# Folder for Non-Type Assets.

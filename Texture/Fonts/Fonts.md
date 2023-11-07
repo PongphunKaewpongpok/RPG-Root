@@ -1,1 +1,1 @@
-"Folder for Entity's textures."
+# Folder for in-game fonts.

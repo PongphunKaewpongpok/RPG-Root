@@ -1,1 +1,1 @@
-"Folder for Wand Texture"
+# Folder for Wand Texture
