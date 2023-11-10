@@ -1,5 +1,5 @@
 ###mport Libraries
-import pygame, sys, math, json, random, playsound
+import pygame, sys, math, json, random
 
 ###Load Datas
 with open("Data/game_data.txt") as game_data:
@@ -8,10 +8,10 @@ with open("Data/game_data.txt") as game_data:
 with open("Data/game_settings.txt") as game_settings:
     GAME_SETTINGS_DICT = json.loads(game_settings.read())
 
-###Game Screen
-playing = "main_menu_0"
+
 
 ###Game Starting
+playing = "main_menu"
 pygame.init()
 pygame.mixer.init()
 SCREEN_WEIGHT = 1380
@@ -25,9 +25,16 @@ spawn_tile_time = 0
 GAME_STAGE = 1
 GAME_ENEMY_COUNT = 0
 RAINDROPS_COOLDOWN = 0
+GAME_EVENT_LEFT = [1, "trading_event"]
+TALKING_FRAME = 0
+ULTIMATE_CHEAT_MODE = "OFF"
+CHEAT_ACTIVATE_DELAY = 0
 
 #Font
 silkscreen_font = pygame.font.Font("Texture/Fonts/Silkscreen/slkscr.ttf", 30)
+silkscreen_font_ingame = pygame.font.Font("Texture/Fonts/Silkscreen/slkscr.ttf", 12)
+#Set Text
+DISPLAY_DEBUG_TEXT = silkscreen_font.render("DEBUG MODE: ON", True, (114, 255, 131))
 
 #Rain Weather
 BLACK_RAINY_DAY_ALPHA = 0
@@ -46,6 +53,8 @@ left_idle_animate = []
 right_idle_animate = []
 left_walk_animate = []
 right_walk_animate = []
+left_death_animate = []
+right_death_animate = []
 for i in num0121:
     left_player_idle = pygame.image.load(f'Texture/Player/idle_{i}.png').convert_alpha()
     right_player_idle = pygame.transform.flip(left_player_idle, True, False)
@@ -57,7 +66,13 @@ for _ in range(2):
         right_player_walk = pygame.transform.flip(left_player_walk, True, False)
         left_walk_animate.append(left_player_walk)
         right_walk_animate.append(right_player_walk)
+for i in range(0, 2):
+    left_death_image = pygame.image.load(f'Texture/Player/death_{i}.png').convert_alpha()
+    right_death_image = pygame.transform.flip(left_death_image, True, False)
+    left_death_animate.append(left_death_image)
+    right_death_animate.append(right_death_image)
 player_frame = 0
+death_frame = 0
 
 #Health Asset
 red_heart = pygame.image.load('Texture/Others/Heart/Red_Heart.png').convert_alpha()
@@ -148,6 +163,21 @@ smallroot_frame = 0
 enemy_spawn_time = 60
 enemy_heart = pygame.transform.scale(red_heart, (30, 30))
 flame_icon = pygame.image.load(f'Texture/Others/flame_icon.png').convert_alpha()
+#Coins drop
+COINS_COUNT = []
+COINS_POS = []
+
+#Merchant Assets
+merchant_image = pygame.image.load('Texture/Entitys/merchant.png').convert_alpha()
+white_talk_box = pygame.image.load('Texture/Gui/white_talk_box.png').convert_alpha()
+MERCHANT_TALK = ["I'm a wandering merchant.", \
+                 "I can upgrade your abilities for just 100 coins.", \
+                 "Do you want to receive this offer?"]
+l00_coin_button = pygame.image.load('Texture/Gui/100_coin_button.png').convert_alpha()
+l00_coin_button = pygame.transform.scale(l00_coin_button, (60, 30))
+no_button = pygame.image.load('Texture/Gui/no_button.png').convert_alpha()
+no_button = pygame.transform.scale(no_button, (55, 30))
+
 
 ###Tiles On Ground
 TILE_TYPE = []
@@ -242,6 +272,7 @@ close_upgrade_sound = pygame.mixer.Sound("Sound/close_upgrade_sound.mp3")
 main_menu_theme = pygame.mixer.Sound("Sound/main_menu_theme.mp3")
 buy_complete_sound = pygame.mixer.Sound("Sound/buy_complete.mp3")
 buy_incomplete_sound = pygame.mixer.Sound("Sound/buy_incomplete.mp3")
+collect_coin_sound = pygame.mixer.Sound("Sound/collect_coin.mp3")
 SOUND_LIST = [open_upgrade_sound, close_upgrade_sound, main_menu_theme, buy_complete_sound, buy_incomplete_sound]
 
 #Upgrade Prices For Each Level
@@ -413,10 +444,10 @@ def play_main_menu_music():
 
 #Main Menu Running Zone#
 
-if playing == "main_menu_0":
+if playing == "main_menu":
     play_main_menu_music()
 
-while playing == "main_menu_0":
+while playing == "main_menu":
     keys = pygame.key.get_pressed()
     clock.tick(60)
     set_volume()
@@ -468,6 +499,71 @@ while playing == "main_menu_0":
 
 
 #In-Game Function Code Zone#
+
+def trading_event():
+    global TALKING_FRAME, silkscreen_font_ingame, GAME_STAGE
+    l00_coin_button_hitbox = l00_coin_button.get_rect()
+    no_button_hitbox = no_button.get_rect()
+    l00_coin_button_hitbox.x, l00_coin_button_hitbox.y = MERCHANT_X+70, MERCHANT_Y-40
+    no_button_hitbox.x, no_button_hitbox.y = MERCHANT_X+150, MERCHANT_Y-40
+    if ((player_hitbox.x-MERCHANT_X)**2+(player_hitbox.y-MERCHANT_Y)**2)**(0.5) < 150:
+        TALKING_FRAME += 2
+        if 0 < TALKING_FRAME <= 50:
+            TEM_SCALE = TALKING_FRAME
+            TEM_TALK_BOX = pygame.transform.scale(white_talk_box, ((TEM_SCALE+50)*3, TEM_SCALE*3))
+            game_screen.blit(TEM_TALK_BOX, (MERCHANT_X-20, MERCHANT_Y-150))
+        elif TALKING_FRAME > 50:
+            TEM_TALK_BOX = pygame.transform.scale(white_talk_box, (300, 150))
+            TEM_TEXT = silkscreen_font_ingame.render(MERCHANT_TALK[0][:int(TALKING_FRAME)-50], True, (0, 0, 0))
+            game_screen.blit(TEM_TALK_BOX, (MERCHANT_X-20, MERCHANT_Y-150))
+            game_screen.blit(TEM_TEXT, (MERCHANT_X, MERCHANT_Y-120))
+            if TALKING_FRAME > 150:
+                if TALKING_FRAME < 178:
+                    TEM_TEXT = silkscreen_font_ingame.render(MERCHANT_TALK[1][:int(TALKING_FRAME)-150], True, (0, 0, 0))
+                    game_screen.blit(TEM_TEXT, (MERCHANT_X, MERCHANT_Y-100))
+                else:
+                    TEM_TEXT = silkscreen_font_ingame.render(MERCHANT_TALK[1][0:28], True, (0, 0, 0))
+                    game_screen.blit(TEM_TEXT, (MERCHANT_X, MERCHANT_Y-100))
+                if TALKING_FRAME > 179:
+                    TEM_TEXT = silkscreen_font_ingame.render(MERCHANT_TALK[1][29:int(TALKING_FRAME)-150], True, (0, 0, 0))
+                    game_screen.blit(TEM_TEXT, (MERCHANT_X, MERCHANT_Y-80))
+            if TALKING_FRAME > 250:
+                TEM_TEXT = silkscreen_font_ingame.render(MERCHANT_TALK[2][:int(TALKING_FRAME)-250], True, (0, 0, 0))
+                game_screen.blit(TEM_TEXT, (MERCHANT_X, MERCHANT_Y-60))
+            if TALKING_FRAME > 275:
+                if l00_coin_button_hitbox.collidepoint(mouse_pos) and pygame.mouse.get_pressed()[0]:
+                    if UPGRADE_DATA_DICT["Coins"] >= 100:
+                        UPGRADE_DATA_DICT["Coins"] -= 100
+                    else:
+                        UPGRADE_DATA_DICT["Coins"] = 0
+                    MERCHANT_TALK[0], MERCHANT_TALK[1], MERCHANT_TALK[2] = "", "", ""
+                    MERCHANT_TALK.append("Ha free coins. Nigerundayooooo.")
+                    TALKING_FRAME = -50
+                elif l00_coin_button_hitbox.collidepoint(mouse_pos) and pygame.mouse.get_pressed()[0]:
+                    MERCHANT_TALK[0], MERCHANT_TALK[1], MERCHANT_TALK[2] = "", "", ""
+                    MERCHANT_TALK.append("Nevermind, smell you later hehe.")
+                    TALKING_FRAME = -50
+                game_screen.blit(l00_coin_button, l00_coin_button_hitbox)
+                game_screen.blit(no_button, no_button_hitbox)
+        elif -50 < TALKING_FRAME < -1:
+            TEM_TEXT = silkscreen_font_ingame.render(MERCHANT_TALK[3][:50-abs(int(TALKING_FRAME))], True, (0, 0, 0))
+            TEM_TALK_BOX = pygame.transform.scale(white_talk_box, (300, 150))
+            game_screen.blit(TEM_TALK_BOX, (MERCHANT_X-20, MERCHANT_Y-150))
+            game_screen.blit(TEM_TEXT, (MERCHANT_X, MERCHANT_Y-100))
+            if TALKING_FRAME == -2:
+                GAME_STAGE = 1
+    game_screen.blit(merchant_image, (MERCHANT_X, MERCHANT_Y))
+                
+
+def display_coins():
+    for i in range(0, len(COINS_POS)):
+        if COINS_POS[i].colliderect(player_hitbox):
+            collect_coin_sound.play()
+            UPGRADE_DATA_DICT["Coins"] += COINS_COUNT[i]
+            COINS_POS.pop(i)
+            COINS_COUNT.pop(i)
+            return
+        game_screen.blit(coin_image, COINS_POS[i])
 
 def display_enemy_health():
     #Display Enemy Health Bar
@@ -558,6 +654,10 @@ def cal_enemy_equation(start_from=0):
                 ENEMY_HP[i] -= TEM_RESULT
                 ENEMY_EQUATION[i] = ""
                 if ENEMY_HP[i] <= 0:
+                    TEM_HITBOX = coin_image.get_rect()
+                    TEM_HITBOX.x, TEM_HITBOX.y = ENEMY_POS[i].x, ENEMY_POS[i].y
+                    COINS_POS.append(TEM_HITBOX)
+                    COINS_COUNT.append(100)
                     ENEMY_TYPE.pop(i)
                     ENEMY_POS.pop(i)
                     ENEMY_EQUATION.pop(i)
@@ -573,8 +673,11 @@ def cal_enemy_equation(start_from=0):
                         TEM_RESULT = (TEM_RESULT*(TEM_FLAME_COUNT/len(ENEMY_TILE_ATTRIBUTE[i])))
                 ENEMY_HP[i] += TEM_RESULT
                 ENEMY_EQUATION[i] = ""
+                ENEMY_TILE_ATTRIBUTE[i] = []
                 hydra_head_left -= 1
                 if hydra_head_left == 0:
+                    COINS_POS.append(ENEMY_POS[i])
+                    COINS_COUNT.append(500)
                     ENEMY_TYPE.pop(i)
                     ENEMY_POS.pop(i)
                     ENEMY_EQUATION.pop(i)
@@ -673,13 +776,14 @@ def display_enemy():
                 delete_shoot_tile(j)
                 break
         if ENEMY_TYPE[i] == "hydra":
+            global hydra_head_left
             if ENEMY_HP[i] >= 1 and hydra_heal_frame == 0:
                 hydra_heal_frame = 30
                 ENEMY_HP[i] = ENEMY_HP[i] - 1
             elif 1 > ENEMY_HP[i] > 0 and hydra_heal_frame == 0:
                 hydra_heal_frame = 30
                 ENEMY_HP[i] = 0
-            elif ENEMY_HP[i] == 0 and hydra_heal_frame != 30:
+            elif ENEMY_HP[i] == 0:
                 hydra_head_left = 3
                 hydra_heal_frame = 30
             else:
@@ -703,8 +807,8 @@ def creating_enemy(types, count, enemy_health):
         if types == "hydra":
             TEM_HITBOX = hydra_sprite.get_rect()
             HYDRA_HEALTH = 3
-        TEM_HITBOX.x = random.randint(100, SCREEN_WEIGHT-200)
-        TEM_HITBOX.y = random.randint(100, SCREEN_WEIGHT-200)
+        TEM_HITBOX.x = 1300
+        TEM_HITBOX.y = random.randint(250, 720)
         ENEMY_POS.append(TEM_HITBOX)
         ENEMY_HP.append(enemy_health)
 
@@ -812,10 +916,11 @@ def shoot_tile():
         SHOOT_DELAY_TIME = 15
         types = inventory_list[SELECT_TILE-1]
         inventory_list.pop(SELECT_TILE-1)
-        if SELECT_TILE > 1 and SELECT_TILE > len(inventory_list)-1:
-            SELECT_TILE -= 1
-        elif SELECT_TILE == 1:
-            SELECT_TILE = 1
+        if ULTIMATE_CHEAT_MODE == "OFF":
+            if SELECT_TILE > 1 and SELECT_TILE > len(inventory_list)-1:
+                SELECT_TILE -= 1
+            elif SELECT_TILE == 1:
+                SELECT_TILE = 1
         if isinstance(types, int):
             TEM_TILE_IMAGE = shoot_tile_image_list[types]
         elif types == "plus":
@@ -855,11 +960,11 @@ def spawn_tiles():
         TEM_GET_RECT = tile_image_list[14].get_rect()
     elif TEM_RANDOM_NUM == "flame_tile":
         TEM_GET_RECT = tile_image_list[15].get_rect()
-    TEM_GET_RECT.x = random.randint(100, SCREEN_WEIGHT-200)
-    TEM_GET_RECT.y = random.randint(100, SCREEN_HEIGHT-100)
+    TEM_GET_RECT.x = random.randint(100, 1200)
+    TEM_GET_RECT.y = random.randint(250, 550)
     TILE_POS.append(TEM_GET_RECT)
     TILE_COUNT += 1
-        
+
 def display_tiles_ground(start_from=0):
     #Blit and Detect Touching
     global TILE_COUNT, SELECT_TILE
@@ -959,7 +1064,7 @@ def shoot_delay_func():
 
 
 #In-Game Running Zone#
-while playing == "in_game":
+while playing == "in_game" and GAME_STAGE != "game_over":
     keys = pygame.key.get_pressed()
     clock.tick(60)
     for event in pygame.event.get():
@@ -996,6 +1101,20 @@ while playing == "in_game":
     if keys[pygame.K_d]:
         player_hitbox.x += MOVEMENT_SPEED
 
+    #Debug Mode
+    if keys[pygame.K_F3] and keys[pygame.K_c]:
+        if ULTIMATE_CHEAT_MODE == "OFF" and CHEAT_ACTIVATE_DELAY == 0:
+            ULTIMATE_CHEAT_MODE = "ON"
+            CHEAT_ACTIVATE_DELAY = 15
+        elif ULTIMATE_CHEAT_MODE == "ON" and CHEAT_ACTIVATE_DELAY == 0:
+            ULTIMATE_CHEAT_MODE = "OFF"
+            inventory_list = []
+            CHEAT_ACTIVATE_DELAY = 15
+    if CHEAT_ACTIVATE_DELAY != 0:
+        CHEAT_ACTIVATE_DELAY -= 1
+    if ULTIMATE_CHEAT_MODE == "ON":
+        inventory_list = ["plus", "minus", "times", "obelus", "equal", 9, 0]
+
     #Calculate Enemy Equation
     cal_enemy_equation()
 
@@ -1024,11 +1143,15 @@ while playing == "in_game":
     #Map
     game_screen.blit(map_bg, (0, 0))
 
+    #Display Coins
+    display_coins()
+
     #Position Detect First Time
     if first_time:
         first_time = False
         player_sprite = right_idle_animate[int(player_frame)]
         player_hitbox = player_sprite.get_rect()
+        player_hitbox.x, player_hitbox.y = 640, 360
 
     #Player Animation
     player_frame_animate()
@@ -1072,6 +1195,8 @@ while playing == "in_game":
     elif TILE_COUNT != LIMIT_TILE_GROUND:
         spawn_tile_time -= 1
 
+    print(player_hitbox)
+
     #Tiles On Ground Blit and Detect Touching
     display_tiles_ground()
 
@@ -1081,16 +1206,30 @@ while playing == "in_game":
 
     #Summon Enemy Smallroot
     if GAME_STAGE == 1:
-        if enemy_spawn_time == 0 and GAME_ENEMY_COUNT < 10:
-            creating_enemy("smallroot", 1, GAME_ENEMY_COUNT+1)
+        if enemy_spawn_time == 0 and GAME_ENEMY_COUNT == 0:
+            creating_enemy("smallroot", 1, (GAME_ENEMY_COUNT+1))
             enemy_spawn_time = 9999999999999999999999
             GAME_ENEMY_COUNT += 1
+        elif enemy_spawn_time == 0 and GAME_ENEMY_COUNT < 10:
+            TEM_RANDOM_EVENT = random.choice(GAME_EVENT_LEFT)
+            if TEM_RANDOM_EVENT != 1:
+                GAME_EVENT_LEFT.remove(TEM_RANDOM_EVENT)
+                GAME_STAGE = TEM_RANDOM_EVENT
+                if GAME_STAGE == "trading_event":
+                    MERCHANT_X, MERCHANT_Y = random.randint(50, 970), random.randint(250, 550)
+            elif TEM_RANDOM_EVENT == 1:
+                creating_enemy("smallroot", 1, (GAME_ENEMY_COUNT+1))
+                enemy_spawn_time = 9999999999999999999999
+                GAME_ENEMY_COUNT += 1
         elif GAME_ENEMY_COUNT == 10 and enemy_spawn_time == 0:
             hydra_head_left = 3
             creating_enemy("hydra", 1, 0)
             GAME_ENEMY_COUNT += 1
+        elif GAME_ENEMY_COUNT == 11 and not "hydra" in ENEMY_TYPE:
+            GAME_STAGE = 2
         elif len(ENEMY_TYPE) == 0 and GAME_ENEMY_COUNT <= 10:
             enemy_spawn_time = 0
+
     #Display Enemy
     display_enemy()
 
@@ -1120,6 +1259,24 @@ while playing == "in_game":
     #Health Bar Blit
     display_health()
 
+    #Health Left Check
+    if not red_heart in HEALTH_LEFT:
+        GAME_STAGE = "game_over"
+
+    display_enemy_health()
+
+    if GAME_STAGE == "trading_event":
+        trading_event()
+
+    #Rainy Day
+    pygame.draw.rect(black_background, (0, 0, 0, BLACK_RAINY_DAY_ALPHA), [0, 0, 1280, SCREEN_HEIGHT])
+    game_screen.blit(black_background, (0, 0))
+    if "hydra" in ENEMY_TYPE:
+        rainy_day()
+
+    #Saving Data
+    save_upgrade_data()
+
     #Inventory Background Blit
     game_screen.blit(inventory_bg_image, (1280, 0))
 
@@ -1129,17 +1286,62 @@ while playing == "in_game":
     #Select Inventory Blit 
     display_select_inven_tile()
 
-    #Health Left Check
-    if not red_heart in HEALTH_LEFT:
-        print("DEAD")
+    if ULTIMATE_CHEAT_MODE == "ON":
+        game_screen.blit(DISPLAY_DEBUG_TEXT, (10, 680))
 
-    display_enemy_health()
+    pygame.time.delay(30)
+    pygame.display.update()
 
-    #Rainy Day
-    pygame.draw.rect(black_background, (0, 0, 0, BLACK_RAINY_DAY_ALPHA), [0, 0, 1280, SCREEN_HEIGHT])
-    game_screen.blit(black_background, (0, 0))
-    if "hydra" in ENEMY_TYPE:
-        rainy_day()
+
+###Death Zone###
+if playing == "in_game" and GAME_STAGE == "game_over":
+    if player_sprite in left_idle_animate or player_sprite in left_walk_animate:
+        DEATH_ROTATE = "left"
+    else:
+        DEATH_ROTATE = "right"
+
+while playing == "in_game" and GAME_STAGE == "game_over":
+    #Display Everything but never move
+    keys = pygame.key.get_pressed()
+    clock.tick(60)
+    for event in pygame.event.get():
+        ###Exit Game
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+    if death_frame < 4:
+        death_frame += 0.1
+    if 2 < death_frame < 4:
+        print(death_frame)
+        if DEATH_ROTATE == "left":
+            player_sprite = left_death_animate[0]
+        else:
+            player_sprite = right_death_animate[0]
+    elif death_frame >= 4:
+        if DEATH_ROTATE == "left":
+            player_sprite = left_death_animate[1]
+        else:
+            player_sprite = right_death_animate[1]
+    game_screen.blit(map_bg, (0, 0))
+    game_screen.blit(inventory_bg_image, (1280, 0))
+    for i in range(0, len(COINS_POS)):
+        game_screen.blit(coin_image, COINS_POS[i])
+    for i in range(0, len(ENEMY_TYPE)):
+        TEM_HITBOX = ENEMY_POS[i]
+        if ENEMY_TYPE[i] == "smallroot":
+            TEM_ENEMY_IMAGE = smallroot_sprite
+        elif ENEMY_TYPE[i] == "hydra":
+            TEM_ENEMY_IMAGE = hydra_sprite
+        if ENEMY_TYPE[i] == "hydra":
+            TEM_X_DIST = player_hitbox.x - ENEMY_POS[i].x
+            TEM_Y_DIST = -(player_hitbox.y - ENEMY_POS[i].y)
+            TEM_RADIAN = math.atan2(TEM_Y_DIST, TEM_X_DIST)
+            TEM_ANGLE = math.degrees(TEM_RADIAN)
+            TEM_ENEMY_IMAGE = pygame.transform.rotate(TEM_ENEMY_IMAGE, TEM_ANGLE + 90)
+        game_screen.blit(TEM_ENEMY_IMAGE, ENEMY_POS[i])
+    for i in range(0, len(HEALTH_LEFT)):
+        game_screen.blit(HEALTH_LEFT[i], (10+(50*i), 10))
+    game_screen.blit(player_sprite, player_hitbox)
 
     pygame.time.delay(30)
     pygame.display.update()
