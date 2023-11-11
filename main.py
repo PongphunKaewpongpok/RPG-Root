@@ -1,5 +1,6 @@
 ###mport Libraries
-import pygame, sys, math, json, random
+import pygame, sys, math, json, random, os
+print(os.getcwd())
 
 ###Load Datas
 with open("Data/game_data.txt") as game_data:
@@ -33,6 +34,7 @@ CHEAT_ACTIVATE_DELAY = 0
 #Font
 silkscreen_font = pygame.font.Font("Texture/Fonts/Silkscreen/slkscr.ttf", 30)
 silkscreen_font_ingame = pygame.font.Font("Texture/Fonts/Silkscreen/slkscr.ttf", 12)
+silkscreen_font_leaderboard = pygame.font.Font("Texture/Fonts/Silkscreen/slkscr.ttf", 16)
 game_over_title_font = pygame.font.Font("Texture/Fonts/Silkscreen/slkscr.ttf", 100)
 game_over_desc_font = pygame.font.Font("Texture/Fonts/Silkscreen/slkscr.ttf", 30)
 #Set Text
@@ -40,6 +42,11 @@ DISPLAY_DEBUG_TEXT = silkscreen_font.render("DEBUG MODE: ON", True, (114, 255, 1
 
 #Game Over
 GAME_OVER_ALPHA = 0
+
+#Switch Scene
+BLACK_BG_SWITCH_ALPHA = 0
+black_bg_switch = pygame.Surface((SCREEN_WEIGHT, SCREEN_HEIGHT), pygame.SRCALPHA)
+
 
 #Rain Weather
 BLACK_RAINY_DAY_ALPHA = 0
@@ -248,7 +255,8 @@ upgrade_gui_image = pygame.transform.scale(pygame.image.load('Texture/Gui/upgrad
 hanging_line_image = pygame.transform.scale(pygame.image.load('Texture/Gui/hanging_line.png').convert_alpha(), (120, 180))
 volume_circle_image = pygame.transform.scale(pygame.image.load('Texture/Gui/volume_circle.png').convert_alpha(), (25, 25))
 volume_bar_image = pygame.transform.scale(pygame.image.load('Texture/Gui/volume_bar.png').convert_alpha(), (202, 20))
-yes_no_gui = pygame.image.load('Texture/Gui/yes_no_gui.png').convert_alpha()
+leaderboard_button_image = pygame.transform.scale(pygame.image.load('Texture/Gui/leaderboard_button.png').convert_alpha(), (300, 100))
+leaderboard_gui_image = pygame.transform.scale(pygame.image.load('Texture/Gui/leaderboard_gui.png').convert_alpha(), (500, 350))
 #Get Hitbox Gui
 game_icon_hitbox = game_icon_image.get_rect()
 play_button_hitbox = play_button_image.get_rect()
@@ -258,6 +266,8 @@ hanging_line_hitbox = hanging_line_image.get_rect()
 upgrade_gui_hitbox = upgrade_gui_image.get_rect()
 volume_circle_hitbox = volume_circle_image.get_rect()
 volume_bar_hitbox = volume_bar_image.get_rect()
+leaderboard_button_hitbox = leaderboard_button_image.get_rect()
+leaderboard_gui_hitbox = leaderboard_gui_image.get_rect()
 #Set Gui Position
 game_icon_hitbox.x, game_icon_hitbox.y = 540, 0
 play_button_hitbox.x, play_button_hitbox.y = 540, 280
@@ -267,9 +277,13 @@ hanging_line_hitbox.x, hanging_line_hitbox.y = 640, 330
 upgrade_gui_hitbox.x, upgrade_gui_hitbox.y = -1850, 150
 volume_circle_hitbox.x, volume_circle_hitbox.y = 1100, 685
 volume_bar_hitbox.x, volume_bar_hitbox.y = 1109, 689
+leaderboard_gui_hitbox.x, leaderboard_gui_hitbox.y = 870, -300
+leaderboard_button_hitbox.x, leaderboard_button_hitbox.y = 980, 0
 
-#Rotate Upgrade Gui
+#Moving Gui
 MOVE_UPGRADE_MENU_VAR = 0
+STATUS_LEADERBOARD_MENU = "Close"
+MOVE_LEADERBOARD_MENU_VAR = 0
 STATUS_UPGRADE_MENU = "Close"
 STATUS_SWITCH_DELAY = 0
 
@@ -307,6 +321,13 @@ SOUND_LIST = [open_upgrade_sound, close_upgrade_sound, main_menu_theme, buy_comp
 PRICES_UPGRADE = {0: 0, 1: 200, 2: 500, 3: 1000, 4: 2000, 5: 3500, 6: 5000, 7: 7500, 8: 10000, 9: 12500, 10: "MAX"}
 
 #Main Menu Function Code Zone
+
+def display_text_leaderboard():
+    for i in range(0, 3):
+        TEM_EQUATION = UPGRADE_DATA_DICT["Most Damage Equation"][i]
+        TEM_DAMAGE = str(UPGRADE_DATA_DICT["Most Damage"][i])
+        game_screen.blit(silkscreen_font_leaderboard.render(TEM_EQUATION, True, (255, 255, 255)), (1055-(8*len(TEM_EQUATION)), 100+70*i))
+        game_screen.blit(silkscreen_font_leaderboard.render(TEM_DAMAGE, True, (255, 255, 255)), (1235-(8*len(TEM_DAMAGE)), 100+70*i))
 
 def upgrade_system():
     global UPGRADE_DELAY_TIME
@@ -372,6 +393,20 @@ def animation_upgrade_menu():
     elif STATUS_UPGRADE_MENU == "Close":
         STATUS_UPGRADE_MENU = "None"
 
+def animation_leaderboard_menu():
+    global STATUS_LEADERBOARD_MENU, MOVE_LEADERBOARD_MENU_VAR
+    if STATUS_LEADERBOARD_MENU == "Open" and MOVE_LEADERBOARD_MENU_VAR != 300:
+        MOVE_LEADERBOARD_MENU_VAR += 60
+        leaderboard_button_hitbox.y += 60
+        if MOVE_LEADERBOARD_MENU_VAR == 240:
+            open_upgrade_sound.play()
+    elif STATUS_LEADERBOARD_MENU == "Close" and MOVE_LEADERBOARD_MENU_VAR != 0:
+        MOVE_LEADERBOARD_MENU_VAR -= 60
+        leaderboard_button_hitbox.y -= 60
+    elif STATUS_LEADERBOARD_MENU == "Close":
+        STATUS_LEADERBOARD_MENU = "None"
+    game_screen.blit(leaderboard_gui_image, (leaderboard_gui_hitbox.x, leaderboard_gui_hitbox.y+MOVE_LEADERBOARD_MENU_VAR))
+
 def display_upgrade_menu():
     if STATUS_UPGRADE_MENU != "None":
         game_screen.blit(upgrade_gui_image, (upgrade_gui_hitbox.x+MOVE_UPGRADE_MENU_VAR, upgrade_gui_hitbox.y))
@@ -435,7 +470,7 @@ def display_upgrade_menu():
             game_screen.blit(CURRENT_LENGTH_PRICE, (180, 502))
 
 def main_game_menu():
-    global mouse_pos, STATUS_UPGRADE_MENU, ROTATE_UPGRADE_MENU_VAR, STATUS_SWITCH_DELAY
+    global mouse_pos, STATUS_UPGRADE_MENU, STATUS_SWITCH_DELAY, STATUS_LEADERBOARD_MENU
     if exit_button_hitbox.collidepoint(mouse_pos) and pygame.mouse.get_pressed()[0]:
         pygame.quit()
         sys.exit()
@@ -452,6 +487,16 @@ def main_game_menu():
         global playing
         playing = "in_game"
         main_menu_theme.fadeout(1000)
+    if leaderboard_button_hitbox.collidepoint(mouse_pos) and pygame.mouse.get_pressed()[0]:
+        if STATUS_SWITCH_DELAY == 0:
+            if STATUS_LEADERBOARD_MENU == "Open":
+                STATUS_SWITCH_DELAY = 15
+                close_upgrade_sound.play()
+                STATUS_LEADERBOARD_MENU = "Close"
+            elif STATUS_LEADERBOARD_MENU == "Close" or STATUS_LEADERBOARD_MENU == "None":
+                STATUS_SWITCH_DELAY = 15
+                STATUS_LEADERBOARD_MENU = "Open"
+    game_screen.blit(leaderboard_button_image, leaderboard_button_hitbox)
     game_screen.blit(game_icon_image, game_icon_hitbox)
     game_screen.blit(hanging_line_image, hanging_line_hitbox)
     game_screen.blit(play_button_image, play_button_hitbox)
@@ -499,6 +544,7 @@ while playing == "main_menu":
     #Display Ugrade Menu
     animation_upgrade_menu()
     display_upgrade_menu()
+    animation_leaderboard_menu()
 
     #Main Menu
     main_game_menu()
@@ -506,7 +552,12 @@ while playing == "main_menu":
     #Volume Button
     display_volume()
 
+    #Upgrade System
     upgrade_system()
+
+    #Display Text in Leaderboard
+    if STATUS_LEADERBOARD_MENU == "Open" and MOVE_LEADERBOARD_MENU_VAR == 300:
+        display_text_leaderboard()
 
     #Saving Data
     save_settings()
@@ -734,6 +785,32 @@ def cal_enemy_equation(start_from=0):
             ENEMY_EQUATION[i] = ""
             ENEMY_TILE_ATTRIBUTE[i] = []
         elif isinstance(TEM_RESULT, float) or isinstance(TEM_RESULT, int):
+            for j in range(0, 3):
+                if UPGRADE_DATA_DICT["Most Damage"][j] < TEM_RESULT or UPGRADE_DATA_DICT["Most Damage Equation"][j] == "N/A":
+                    if j == 0:
+                        UPGRADE_DATA_DICT["Most Damage"][2] = UPGRADE_DATA_DICT["Most Damage"][1]
+                        UPGRADE_DATA_DICT["Most Damage"][1] = UPGRADE_DATA_DICT["Most Damage"][0]
+                        UPGRADE_DATA_DICT["Most Damage Equation"][2] = UPGRADE_DATA_DICT["Most Damage Equation"][1]
+                        UPGRADE_DATA_DICT["Most Damage Equation"][1] = UPGRADE_DATA_DICT["Most Damage Equation"][0]
+                    if j == 1:
+                        UPGRADE_DATA_DICT["Most Damage"][2] = UPGRADE_DATA_DICT["Most Damage"][1]
+                        UPGRADE_DATA_DICT["Most Damage Equation"][1] = UPGRADE_DATA_DICT["Most Damage Equation"][0]
+                    UPGRADE_DATA_DICT["Most Damage"][j] = int(TEM_RESULT)
+                    UPGRADE_DATA_DICT["Most Damage Equation"][j] = ENEMY_EQUATION[i]
+                    print("Save")
+                    break
+                elif UPGRADE_DATA_DICT["Most Damage"][j] == TEM_RESULT and len(ENEMY_EQUATION[i]) >= len(UPGRADE_DATA_DICT["Most Damage Equation"][j]):
+                    if j == 0:
+                        UPGRADE_DATA_DICT["Most Damage"][2] = UPGRADE_DATA_DICT["Most Damage"][1]
+                        UPGRADE_DATA_DICT["Most Damage"][1] = UPGRADE_DATA_DICT["Most Damage"][0]
+                        UPGRADE_DATA_DICT["Most Damage Equation"][2] = UPGRADE_DATA_DICT["Most Damage Equation"][1]
+                        UPGRADE_DATA_DICT["Most Damage Equation"][1] = UPGRADE_DATA_DICT["Most Damage Equation"][0]
+                    if j == 1:
+                        UPGRADE_DATA_DICT["Most Damage"][2] = UPGRADE_DATA_DICT["Most Damage"][1]
+                        UPGRADE_DATA_DICT["Most Damage Equation"][1] = UPGRADE_DATA_DICT["Most Damage Equation"][0]
+                    UPGRADE_DATA_DICT["Most Damage"][j] = int(TEM_RESULT)
+                    UPGRADE_DATA_DICT["Most Damage Equation"][j] = ENEMY_EQUATION[i]
+                    break
             if ENEMY_TYPE[i] == "smallroot":
                 ENEMY_HP[i] -= TEM_RESULT
                 ENEMY_EQUATION[i] = ""
@@ -1249,6 +1326,9 @@ while playing == "in_game" and GAME_STAGE != "game_over":
     #Map
     game_screen.blit(map_bg, (0, 0))
 
+    #Display Warn Poison Area
+    display_warn_poison_area()
+
     #Display Posion Area
     display_poison_area()
 
@@ -1360,8 +1440,6 @@ while playing == "in_game" and GAME_STAGE != "game_over":
             make_flame_tile(i)
             display_shoot_tile(i)
 
-    display_warn_poison_area()
-
     #Player Sprite Blit
     game_screen.blit(player_sprite, player_hitbox)
 
@@ -1393,9 +1471,6 @@ while playing == "in_game" and GAME_STAGE != "game_over":
     pygame.draw.rect(black_background, (0, 0, 0, BLACK_RAINY_DAY_ALPHA), [0, 0, 1280, SCREEN_HEIGHT])
     game_screen.blit(black_background, (0, 0))
 
-    
-    
-
     #Health Bar Blit
     display_health()
 
@@ -1411,8 +1486,12 @@ while playing == "in_game" and GAME_STAGE != "game_over":
     #Select Inventory Blit 
     display_select_inven_tile()
 
+    CURRENT_COIN = silkscreen_font.render(str(UPGRADE_DATA_DICT["Coins"]), True, (255, 249, 134))
+    game_screen.blit(coin_image, (20, 680))
+    game_screen.blit(CURRENT_COIN, (50, 682))
+
     if ULTIMATE_CHEAT_MODE == "ON":
-        game_screen.blit(DISPLAY_DEBUG_TEXT, (10, 680))
+        game_screen.blit(DISPLAY_DEBUG_TEXT, (1000, 680))
 
     pygame.time.delay(30)
     pygame.display.update()
