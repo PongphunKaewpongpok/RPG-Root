@@ -23,7 +23,7 @@ clock = pygame.time.Clock()
 first_time = True
 spawn_tile_time = 0
 GAME_STAGE = 1
-GAME_ENEMY_COUNT = 0
+GAME_ENEMY_COUNT = 10
 RAINDROPS_COOLDOWN = 0
 GAME_EVENT_LEFT = [1, "trading_event"]
 TALKING_FRAME = 0
@@ -33,15 +33,28 @@ CHEAT_ACTIVATE_DELAY = 0
 #Font
 silkscreen_font = pygame.font.Font("Texture/Fonts/Silkscreen/slkscr.ttf", 30)
 silkscreen_font_ingame = pygame.font.Font("Texture/Fonts/Silkscreen/slkscr.ttf", 12)
+game_over_title_font = pygame.font.Font("Texture/Fonts/Silkscreen/slkscr.ttf", 100)
+game_over_desc_font = pygame.font.Font("Texture/Fonts/Silkscreen/slkscr.ttf", 30)
 #Set Text
 DISPLAY_DEBUG_TEXT = silkscreen_font.render("DEBUG MODE: ON", True, (114, 255, 131))
+
+#Game Over
+GAME_OVER_ALPHA = 0
 
 #Rain Weather
 BLACK_RAINY_DAY_ALPHA = 0
 black_background = pygame.Surface((SCREEN_WEIGHT, SCREEN_HEIGHT), pygame.SRCALPHA)
-raindrops = pygame.Surface((SCREEN_WEIGHT, SCREEN_HEIGHT), pygame.SRCALPHA)
+raindrops = pygame.image.load('Texture/Others/raindrops.png').convert_alpha()
+raindrops = pygame.transform.rotate(raindrops, -45)
+raindrops_ground = pygame.image.load('Texture/Others/raindrops_ground.png').convert_alpha()
+raindrops_ground = pygame.transform.scale(raindrops_ground, (9, 45))
 raindrops_pos_list = []
-raindrops = pygame.transform.rotate(raindrops, 90)
+raindrops_y_end_list = []
+raindrops_time_list = []
+
+#Got Damage
+red_background = pygame.Surface((SCREEN_WEIGHT, SCREEN_HEIGHT), pygame.SRCALPHA)
+RED_GOT_DAMAGE_ALPHA = 0
 
 ###Wand
 wand_image = pygame.image.load('Texture/Wand/original_form.png').convert_alpha()
@@ -97,6 +110,19 @@ hydra_frame = 0
 hydra_status = "Move"
 hydra_head_left = -1
 hydra_heal_frame = 30
+poison_area_frame = 0
+poison_ball_image = pygame.image.load('Texture/Entitys/Hydra/poison_ball.png').convert_alpha()
+poison_area_list = []
+for i in range(0, 5):
+    poison_area_image = pygame.image.load(f'Texture/Entitys/Hydra/poison_area/{i}.png').convert_alpha()
+    poison_area_list.append(poison_area_image)
+poison_area_warn_image = pygame.image.load('Texture/Entitys/Hydra/poison_area/red.png').convert_alpha()
+POISON_BALL_POS = []
+POISON_BALL_END = []
+POISON_BALL_TIME = []
+POISON_AREA_POS = []
+POISON_AREA_TIME = []
+hydra_skill_cooldown = 90
 
 ###Tiles Inventory
 inventory_list = []
@@ -273,7 +299,9 @@ main_menu_theme = pygame.mixer.Sound("Sound/main_menu_theme.mp3")
 buy_complete_sound = pygame.mixer.Sound("Sound/buy_complete.mp3")
 buy_incomplete_sound = pygame.mixer.Sound("Sound/buy_incomplete.mp3")
 collect_coin_sound = pygame.mixer.Sound("Sound/collect_coin.mp3")
-SOUND_LIST = [open_upgrade_sound, close_upgrade_sound, main_menu_theme, buy_complete_sound, buy_incomplete_sound]
+got_damaged_sound = pygame.mixer.Sound("Sound/got_damaged.mp3")
+SOUND_LIST = [open_upgrade_sound, close_upgrade_sound, main_menu_theme, buy_complete_sound, \
+              buy_incomplete_sound, collect_coin_sound, got_damaged_sound]
 
 #Upgrade Prices For Each Level
 PRICES_UPGRADE = {0: 0, 1: 200, 2: 500, 3: 1000, 4: 2000, 5: 3500, 6: 5000, 7: 7500, 8: 10000, 9: 12500, 10: "MAX"}
@@ -500,6 +528,55 @@ while playing == "main_menu":
 
 #In-Game Function Code Zone#
 
+def display_got_damage_effect():
+    global hit_delay_time, RED_GOT_DAMAGE_ALPHA
+    if hit_delay_time == 60:
+        got_damaged_sound.play()
+    if 45 < hit_delay_time <= 60:
+        RED_GOT_DAMAGE_ALPHA = 255*((hit_delay_time-45)/15)
+    print(RED_GOT_DAMAGE_ALPHA)
+    pygame.draw.rect(red_background, (255, 0, 0, RED_GOT_DAMAGE_ALPHA), [0, 0, 1280, SCREEN_HEIGHT])
+    game_screen.blit(red_background, (0, 0))
+
+def display_warn_poison_area():
+    for i in range(0, len(POISON_BALL_END)):
+        game_screen.blit(poison_area_warn_image, (POISON_BALL_END[i].x-25, POISON_BALL_END[i].y-25))
+
+def display_poison_area(start_from=0):
+    global hit_delay_time
+    for i in range(start_from, len(POISON_AREA_POS)):
+        POISON_AREA_TIME[i] += 1
+        if POISON_AREA_POS[i].colliderect(player_hitbox) and hit_delay_time == 0:
+            hit_delay_time = 60
+            for j in range(len(HEALTH_LEFT)-1, -1, -1):
+                if HEALTH_LEFT[j] == red_heart:
+                    HEALTH_LEFT[j] = black_heart
+                    break
+        game_screen.blit(poison_area_sprite, POISON_AREA_POS[i])
+        if POISON_AREA_TIME[i] >= 300:
+            POISON_AREA_POS.pop(i)
+            POISON_AREA_TIME.pop(i)
+            display_poison_area(i)
+            return
+
+def display_poison_ball():
+    for i in range(0, len(POISON_BALL_POS)):
+        TEM_X_NOW, TEM_Y_NOW = POISON_BALL_POS[i].x, POISON_BALL_POS[i].y
+        TEM_X_END, TEM_Y_END = POISON_BALL_END[i].x, POISON_BALL_END[i].y
+        TEM_TIME = POISON_BALL_TIME[i]
+        TEM_X = TEM_X_NOW + (TEM_X_END-TEM_X_NOW)*(TEM_TIME/3)
+        TEM_Y = TEM_Y_NOW + (TEM_Y_END-TEM_Y_NOW)*(TEM_TIME/3)
+        if TEM_TIME >= 3:
+            TEM_HITBOX = poison_area_sprite.get_rect()
+            TEM_HITBOX.x, TEM_HITBOX.y = TEM_X_END-25, TEM_Y_END-25
+            POISON_AREA_POS.append(TEM_HITBOX)
+            POISON_AREA_TIME.append(0)
+            POISON_BALL_POS.pop(i)
+            POISON_BALL_END.pop(i)
+            POISON_BALL_TIME.pop(i)
+            return
+        game_screen.blit(poison_ball_image, (TEM_X, TEM_Y))
+
 def trading_event():
     global TALKING_FRAME, silkscreen_font_ingame, GAME_STAGE
     l00_coin_button_hitbox = l00_coin_button.get_rect()
@@ -581,24 +658,31 @@ def display_enemy_health():
 
 def rainy_day(start_from=0):
     #Change Weather To Raining (Running when Hydra Boss has arrived.)
-    global BLACK_RAINY_DAY_ALPHA, RAINDROPS_COOLDOWN
+    global BLACK_RAINY_DAY_ALPHA, RAINDROPS_COOLDOWN, raindrops
     if BLACK_RAINY_DAY_ALPHA < 120:
         BLACK_RAINY_DAY_ALPHA += 2
     if RAINDROPS_COOLDOWN == 0:
-        TEM_POS = raindrops.get_rect()
-        raindrops_pos_list.append(TEM_POS)
+        raindrops_pos_list.append([random.randint(0, 1280), -10])
+        raindrops_y_end_list.append(random.randint(250, 550))
+        raindrops_time_list.append(0)
         RAINDROPS_COOLDOWN = 10
     else:
         RAINDROPS_COOLDOWN -= 1
     for i in range(start_from, len(raindrops_pos_list)):
-        if raindrops_pos_list[i][0] < 0 or raindrops_pos_list[i][1] > SCREEN_HEIGHT:
-            raindrops_pos_list.pop(i)
-            rainy_day(i)
-            return
-        raindrops_pos_list[i].x -= 10
-        raindrops_pos_list[i].y += 10
-        TEM_POS = raindrops_pos_list[i]
-        game_screen.blit(raindrops, TEM_POS)
+        if raindrops_pos_list[i][1] > raindrops_y_end_list[i]:
+            game_screen.blit(raindrops_ground, (raindrops_pos_list[i][0], raindrops_y_end_list[i]))
+            if raindrops_time_list[i] >= 10:
+                raindrops_pos_list.pop(i)
+                raindrops_y_end_list.pop(i)
+                raindrops_time_list.pop(i)
+                rainy_day(i)
+                return
+            else:
+                raindrops_time_list[i] += 1
+        else:
+            raindrops_pos_list[i][0], raindrops_pos_list[i][1] = raindrops_pos_list[i][0] - 10, raindrops_pos_list[i][1] + 10
+            TEM_POS = raindrops_pos_list[i]
+            game_screen.blit(raindrops, (TEM_POS[0], TEM_POS[1]))
 
 def operatorcheck(equation, operator_count=0):
     #This function check that equation are in correctly form not like "1+=1", "--1" and more..
@@ -695,6 +779,7 @@ def delete_shoot_tile(index):
 
 def enemy_movement():
     #Enemy Movement
+    global poison_area_sprite, hydra_status, hydra_skill_cooldown
     for i in range(0, len(ENEMY_TYPE)):
         if ENEMY_TYPE[i] == "smallroot" and int(smallroot_frame) < 4:
             TEM_X_DIST = player_hitbox.x - ENEMY_POS[i].x
@@ -708,6 +793,16 @@ def enemy_movement():
             TEM_RADIAN = math.atan2(TEM_Y_DIST, TEM_X_DIST)
             ENEMY_POS[i].x += math.cos(TEM_RADIAN)*1.5
             ENEMY_POS[i].y += -(math.sin(TEM_RADIAN))*1.5
+        elif ENEMY_TYPE[i] == "hydra" and hydra_status == "Skill":
+            TEM_HITBOX = poison_ball_image.get_rect()
+            TEM_HITBOX.x, TEM_HITBOX.y = ENEMY_POS[i].x, ENEMY_POS[i].y
+            POISON_BALL_POS.append(TEM_HITBOX)
+            TEM_HITBOX = poison_ball_image.get_rect()
+            TEM_HITBOX.x, TEM_HITBOX.y = player_hitbox.x, player_hitbox.y
+            POISON_BALL_END.append(TEM_HITBOX)
+            POISON_BALL_TIME.append(0)
+            hydra_status = "Move"
+            hydra_skill_cooldown = 90
 
 def display_enemy_tile():
     for i in range(0, len(ENEMY_TYPE)):
@@ -1057,6 +1152,13 @@ def select_inven_animate():
     else:
         select_inven_frame += 0.1
 
+def poison_area_animate():
+    global poison_area_frame
+    if poison_area_frame >= 4.9:
+        poison_area_frame = 0
+    else:
+        poison_area_frame += 0.1
+
 def shoot_delay_func():
     global SHOOT_DELAY_TIME
     if SHOOT_DELAY_TIME > 0:
@@ -1123,6 +1225,10 @@ while playing == "in_game" and GAME_STAGE != "game_over":
 
     #Hydra
     hydra_sprite = hydra_animation_list[hydra_head_left-1][int(hydra_frame)]
+    poison_area_sprite = poison_area_list[int(poison_area_frame)]
+
+    for i in range(0, len(POISON_BALL_TIME)):
+        POISON_BALL_TIME[i] += 0.05
 
     #Enemy Movement
     enemy_movement()
@@ -1142,6 +1248,9 @@ while playing == "in_game" and GAME_STAGE != "game_over":
 
     #Map
     game_screen.blit(map_bg, (0, 0))
+
+    #Display Posion Area
+    display_poison_area()
 
     #Display Coins
     display_coins()
@@ -1194,8 +1303,6 @@ while playing == "in_game" and GAME_STAGE != "game_over":
         spawn_tile_time = 60
     elif TILE_COUNT != LIMIT_TILE_GROUND:
         spawn_tile_time -= 1
-
-    print(player_hitbox)
 
     #Tiles On Ground Blit and Detect Touching
     display_tiles_ground()
@@ -1253,26 +1360,44 @@ while playing == "in_game" and GAME_STAGE != "game_over":
             make_flame_tile(i)
             display_shoot_tile(i)
 
+    display_warn_poison_area()
+
     #Player Sprite Blit
     game_screen.blit(player_sprite, player_hitbox)
-
-    #Health Bar Blit
-    display_health()
 
     #Health Left Check
     if not red_heart in HEALTH_LEFT:
         GAME_STAGE = "game_over"
 
+    #Display Enemy Health
     display_enemy_health()
+
+    #Display Poison Ball
+    display_poison_ball()
 
     if GAME_STAGE == "trading_event":
         trading_event()
 
+    #Display Got Damage Effect
+    display_got_damage_effect()
+
     #Rainy Day
-    pygame.draw.rect(black_background, (0, 0, 0, BLACK_RAINY_DAY_ALPHA), [0, 0, 1280, SCREEN_HEIGHT])
-    game_screen.blit(black_background, (0, 0))
     if "hydra" in ENEMY_TYPE:
         rainy_day()
+        poison_area_animate()
+        if hydra_skill_cooldown != 0:
+            hydra_skill_cooldown -= 1
+        else:
+            hydra_status = "Skill"
+
+    pygame.draw.rect(black_background, (0, 0, 0, BLACK_RAINY_DAY_ALPHA), [0, 0, 1280, SCREEN_HEIGHT])
+    game_screen.blit(black_background, (0, 0))
+
+    
+    
+
+    #Health Bar Blit
+    display_health()
 
     #Saving Data
     save_upgrade_data()
@@ -1292,9 +1417,26 @@ while playing == "in_game" and GAME_STAGE != "game_over":
     pygame.time.delay(30)
     pygame.display.update()
 
+##Death Zone Code
+
+def display_game_over_text():
+    global GAME_OVER_ALPHA
+    if GAME_OVER_ALPHA != 255:
+        GAME_OVER_ALPHA += 2
+    TITLE_GAME_OVER_TEXT = game_over_title_font.render("GAME OVER", True, (236, 28, 36))
+    DESC_GAME_OVER_TEXT = game_over_desc_font.render("Upgrading is the best option to win more easily in this game.", True, (236, 28, 36))
+    if GAME_OVER_ALPHA < 127:
+        TITLE_GAME_OVER_TEXT.set_alpha(GAME_OVER_ALPHA*2)
+        DESC_GAME_OVER_TEXT.set_alpha(0)
+    else:
+        TITLE_GAME_OVER_TEXT.set_alpha(255)
+        DESC_GAME_OVER_TEXT.set_alpha((GAME_OVER_ALPHA-127)*2)
+    game_screen.blit(TITLE_GAME_OVER_TEXT, (340, 310))
+    game_screen.blit(DESC_GAME_OVER_TEXT, (100, 410))
 
 ###Death Zone###
 if playing == "in_game" and GAME_STAGE == "game_over":
+    main_menu_theme.play(loops=-1)
     if player_sprite in left_idle_animate or player_sprite in left_walk_animate:
         DEATH_ROTATE = "left"
     else:
@@ -1309,10 +1451,12 @@ while playing == "in_game" and GAME_STAGE == "game_over":
         if event.type == pygame.QUIT:
             pygame.quit()
             sys.exit()
+    #Hit Delay
+    if hit_delay_time > 0:
+        hit_delay_time -= 1
     if death_frame < 4:
         death_frame += 0.1
     if 2 < death_frame < 4:
-        print(death_frame)
         if DEATH_ROTATE == "left":
             player_sprite = left_death_animate[0]
         else:
@@ -1339,9 +1483,16 @@ while playing == "in_game" and GAME_STAGE == "game_over":
             TEM_ANGLE = math.degrees(TEM_RADIAN)
             TEM_ENEMY_IMAGE = pygame.transform.rotate(TEM_ENEMY_IMAGE, TEM_ANGLE + 90)
         game_screen.blit(TEM_ENEMY_IMAGE, ENEMY_POS[i])
+    game_screen.blit(player_sprite, player_hitbox)
+    display_got_damage_effect()
+    if "hydra" in ENEMY_TYPE:
+        rainy_day()
+    pygame.draw.rect(black_background, (0, 0, 0, BLACK_RAINY_DAY_ALPHA), [0, 0, 1280, SCREEN_HEIGHT])
+    game_screen.blit(black_background, (0, 0))
     for i in range(0, len(HEALTH_LEFT)):
         game_screen.blit(HEALTH_LEFT[i], (10+(50*i), 10))
-    game_screen.blit(player_sprite, player_hitbox)
+
+    display_game_over_text()
 
     pygame.time.delay(30)
     pygame.display.update()
