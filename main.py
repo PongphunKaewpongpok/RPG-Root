@@ -419,7 +419,7 @@ while True:
         if STATUS_LEADERBOARD_MENU == "Open" and MOVE_LEADERBOARD_MENU_VAR != 300:
             MOVE_LEADERBOARD_MENU_VAR += 60
             leaderboard_button_hitbox.y += 60
-            if MOVE_LEADERBOARD_MENU_VAR == 240:
+            if MOVE_LEADERBOARD_MENU_VAR == 60:
                 open_upgrade_sound.play()
         elif STATUS_LEADERBOARD_MENU == "Close" and MOVE_LEADERBOARD_MENU_VAR != 0:
             MOVE_LEADERBOARD_MENU_VAR -= 60
@@ -1463,12 +1463,20 @@ while True:
         move_speed_set()
         if keys[pygame.K_w]:
             player_hitbox.y -= MOVEMENT_SPEED
+            if player_hitbox.y <= 170:
+                player_hitbox.y += MOVEMENT_SPEED
         if keys[pygame.K_s]:
             player_hitbox.y += MOVEMENT_SPEED
+            if player_hitbox.y >= 670:
+                player_hitbox.y -= MOVEMENT_SPEED
         if keys[pygame.K_a]:
             player_hitbox.x -= MOVEMENT_SPEED
+            if player_hitbox.x <= 0:
+                player_hitbox.x += MOVEMENT_SPEED
         if keys[pygame.K_d]:
             player_hitbox.x += MOVEMENT_SPEED
+            if player_hitbox.x >= 1230:
+                player_hitbox.x -= MOVEMENT_SPEED
 
         #Debug Mode
         if keys[pygame.K_F3] and keys[pygame.K_c]:
