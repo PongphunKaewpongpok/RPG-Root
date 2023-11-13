@@ -10,8 +10,6 @@ while True:
     with open("Data/game_settings.txt") as game_settings:
         GAME_SETTINGS_DICT = json.loads(game_settings.read())
 
-
-
     ###Game Starting
     playing = "main_menu"
     pygame.init()
@@ -38,6 +36,7 @@ while True:
     silkscreen_font_leaderboard = pygame.font.Font("Texture/Fonts/Silkscreen/slkscr.ttf", 16)
     game_over_title_font = pygame.font.Font("Texture/Fonts/Silkscreen/slkscr.ttf", 100)
     game_over_desc_font = silkscreen_font
+    story_2_font = silkscreen_font
     pause_title_font = game_over_title_font
     #Set Text
     DISPLAY_DEBUG_TEXT = silkscreen_font.render("DEBUG MODE: ON", True, (114, 255, 131))
@@ -47,7 +46,6 @@ while True:
 
     #Switch Scene
     black_bg_switch = pygame.Surface((SCREEN_WEIGHT, SCREEN_HEIGHT), pygame.SRCALPHA)
-
 
     #Rain Weather
     BLACK_RAINY_DAY_ALPHA = 0
@@ -104,8 +102,22 @@ while True:
     hit_delay_time = 0
 
     ###Map Assets
-    map_bg = pygame.image.load('Texture/Map/City_1.png').convert_alpha()
-    map_bg = pygame.transform.scale(map_bg, (1280,720))
+    map_bg = pygame.transform.scale(pygame.image.load('Texture/Map/City_1.png').convert_alpha(), (1280,720))
+    front_reaper_castle = pygame.transform.scale(pygame.image.load('Texture/Map/Reaper_Castle/Front_Layer.png').convert_alpha(), (1380, 220))
+    back_reaper_castle = pygame.transform.scale(pygame.image.load('Texture/Map/Reaper_Castle/Back_Layer.png').convert_alpha(), (1380, 720))
+
+    #Reaper
+    reaper_image = pygame.transform.flip(pygame.transform.scale(pygame.image.load('Texture/Entitys/reaper.png').convert_alpha(), (300, 300)), True, False)
+    REAPER_FRAME = 0
+    REAPER_TALK = ["Welcome to HelHelm, or the place you know as Hell.", \
+                   "You, the last living wizard but that doesn't seem to be the case anymore since you're here.", \
+                   "However, I have a big task for you.", \
+                   "Yggdrasil of Helhelm are broke the border and went straight to Midguard or the place you called The Earth.", \
+                   "Due to Yggdrasil of Helhelm's thirst for knowledge, he absorbed all the mathematical knowledge of the world.", \
+                   "Yggdrasil of Helhelm can create his own minions but the subordinates will be made from wood and similar to living things.", \
+                   "Therefore, mathemical knowledge must be fought with mathematical knowledge.", \
+                   "So I need you because you are the last person who can use magic.", \
+                   "Bring Yggdrasil of Helhelm back to Helhelm and release mathematical knowledge back into the world."]
 
     #Hydra Asset
     hydra_animation_list = [[], [], []]
@@ -144,6 +156,12 @@ while True:
     back_to_main_menu_hitbox = back_to_main_menu_image.get_rect()
     press_to_pause_hitbox.x, press_to_pause_hitbox.y = 10, 10
     press_to_continue_hitbox.x, press_to_continue_hitbox.y = 10, 10
+
+    #Skip Cutscene Assets
+    skip_button_image = pygame.image.load('Texture/Gui/skip_button.png').convert_alpha()
+    skip_button_hitbox = skip_button_image.get_rect()
+    skip_button_hitbox.x, skip_button_hitbox.y = 10, 10
+    SKIP_SHOW = False
 
     ###Tiles Inventory
     inventory_list = []
@@ -184,13 +202,30 @@ while True:
         tile_image = pygame.image.load(f'Texture/Tiles/Flame/Operators/{i}.png').convert_alpha()
         shoot_flame_tile_image_list.append(tile_image)
 
+    ###Rainy Tiles (Story_2)
+    back_rainy_tile = []
+    front_rainy_tile = []
+    back_rainy_tile_pos = []
+    front_rainy_tile_pos = []
+    RAINY_TILE_COOLDOWN = 50
+    falling_player_list = []
+    STORY_2_FRAME = 0
+    wand_image_story_2 = pygame.transform.rotate(pygame.transform.scale(pygame.image.load('Texture/Wand/original_form.png').convert_alpha(), (300, 300)), 75)
+    for i in num0121:
+        TEM_PLAYER_IMAGE = pygame.transform.scale(pygame.image.load(f'Texture/Player/falling_{i}.png').convert_alpha(), (500, 500))
+        falling_player_list.append(TEM_PLAYER_IMAGE)
+    reaper_wand_list = []
+    for i in range(15):
+        reaper_wand_list.append(pygame.transform.rotate(pygame.transform.scale(pygame.image.load(f'Texture/Wand/reaper_form/{i}.png').convert_alpha(), (300, 300)), 75))
+    you_win_award = pygame.transform.rotate(pygame.transform.scale(pygame.image.load('Texture/Others/you_win.png').convert_alpha(), (280, 280)), 75)
+
     #Fire Chamber Asset
     fire_chamber_animate = []
     FIRE_CHAM_POS = []
     FIRE_CHAM_TIME = []
     for i in num0121:
         tem_fire_chamber_image = pygame.image.load(f'Texture/Others/Fire/{i}.png').convert_alpha()
-        tem_fire_chamber_image = pygame.transform.scale(tem_fire_chamber_image, (60,80))
+        tem_fire_chamber_image = pygame.transform.scale(tem_fire_chamber_image, (60, 80))
         fire_chamber_animate.append(tem_fire_chamber_image)
     fire_chamber_frame = 0
 
@@ -209,10 +244,30 @@ while True:
     smallroot_frame = 0
     enemy_spawn_time = 60
     enemy_heart = pygame.transform.scale(red_heart, (30, 30))
-    flame_icon = pygame.image.load(f'Texture/Others/flame_icon.png').convert_alpha()
+    flame_icon = pygame.image.load('Texture/Others/flame_icon.png').convert_alpha()
     #Coins drop
     COINS_COUNT = []
     COINS_POS = []
+
+    #Yggdrasil
+    yggdrasil_shadow = pygame.transform.scale(pygame.image.load('Texture/Entitys/Yggdrasil/shadow.png').convert_alpha(), (1500, 800))
+    yggdrasil_face = pygame.transform.scale(pygame.image.load('Texture/Entitys/Yggdrasil/face.png').convert_alpha(), (600, 450))
+    bigroot_move = pygame.image.load('Texture/Entitys/Yggdrasil/move.png').convert_alpha()
+    bigroot_move_list = [bigroot_move, pygame.transform.flip(bigroot_move, False, True)]
+    bigroot_flick_up = []
+    bigroot_flick_down = []
+    for i in range(2):
+        TEM_IMAGE = pygame.image.load(f'Texture/Entitys/Yggdrasil/flick/{i}.png').convert_alpha()
+        bigroot_flick_up.append(TEM_IMAGE)
+        bigroot_flick_down.append(pygame.transform.flip(TEM_IMAGE, False, True))
+    bigroot_hitbox = bigroot_move.get_rect()
+    bigroot_hitbox.x, bigroot_hitbox.y = -1280, 200
+    YGGD_SHADOW_ALPHA = 0
+    YGGDRASIL_FRAME = 0
+    bigroot_sprite = bigroot_move_list[int(YGGDRASIL_FRAME)]
+
+    #Story_2 Background
+    story_2_background = pygame.Surface((SCREEN_WEIGHT, SCREEN_HEIGHT), pygame.SRCALPHA)
 
     #Merchant Assets
     merchant_image = pygame.image.load('Texture/Entitys/merchant.png').convert_alpha()
@@ -328,8 +383,9 @@ while True:
     buy_incomplete_sound = pygame.mixer.Sound("Sound/buy_incomplete.mp3")
     collect_coin_sound = pygame.mixer.Sound("Sound/collect_coin.mp3")
     got_damaged_sound = pygame.mixer.Sound("Sound/got_damaged.mp3")
+    end_game_theme = pygame.mixer.Sound("Sound/end_game_music.mp3")
     SOUND_LIST = [open_upgrade_sound, close_upgrade_sound, main_menu_theme, buy_complete_sound, \
-                  buy_incomplete_sound, collect_coin_sound, got_damaged_sound]
+                  buy_incomplete_sound, collect_coin_sound, got_damaged_sound, end_game_theme]
 
     #Upgrade Prices For Each Level
     PRICES_UPGRADE = {0: 0, 1: 200, 2: 500, 3: 1000, 4: 2000, 5: 3500, 6: 5000, 7: 7500, 8: 10000, 9: 12500, 10: "MAX"}
@@ -506,7 +562,7 @@ while True:
                     STATUS_UPGRADE_MENU = "Open"
         if play_button_hitbox.collidepoint(mouse_pos) and pygame.mouse.get_pressed()[0]:
             global playing
-            playing = "in_game"
+            playing = "story_1"
             BLACK_BG_SWITCH_ALPHA = 255
             main_menu_theme.fadeout(1000)
         if leaderboard_button_hitbox.collidepoint(mouse_pos) and pygame.mouse.get_pressed()[0]:
@@ -547,7 +603,25 @@ while True:
 
 
     #In-Game Function Code Zone#
-        
+
+    def yggdrasil_boss():
+        global YGGD_SHADOW_ALPHA, hit_delay_time
+        if YGGD_SHADOW_ALPHA < 100:
+            YGGD_SHADOW_ALPHA += 3
+        else:
+            if bigroot_hitbox.x < 0:
+                bigroot_hitbox.x += 4
+            game_screen.blit(bigroot_sprite, bigroot_hitbox)
+        if bigroot_hitbox.colliderect(player_hitbox) and hit_delay_time == 0:
+            hit_delay_time = 60
+            for j in range(len(HEALTH_LEFT)-1, -1, -1):
+                    if HEALTH_LEFT[j] == red_heart:
+                        HEALTH_LEFT[j] = black_heart
+                        break
+        yggdrasil_face.set_alpha(YGGD_SHADOW_ALPHA/2)
+        yggdrasil_shadow.set_alpha(YGGD_SHADOW_ALPHA)
+        game_screen.blit(yggdrasil_shadow, (0, 0))
+        game_screen.blit(yggdrasil_face, (450, 150))
 
     def back_main_menu_button_func():
         global keys, playing, BLACK_BG_SWITCH_ALPHA
@@ -555,6 +629,7 @@ while True:
             playing = "main_menu"
             BLACK_BG_SWITCH_ALPHA = 255
             main_menu_theme.fadeout(1000)
+            end_game_theme.fadeout(1000)
 
     def pause_button_function(TEM_PASS=False):
         global keys, PAUSE_DELAY, playing
@@ -725,6 +800,7 @@ while True:
         no_button_hitbox = no_button.get_rect()
         l00_coin_button_hitbox.x, l00_coin_button_hitbox.y = MERCHANT_X+70, MERCHANT_Y-40
         no_button_hitbox.x, no_button_hitbox.y = MERCHANT_X+150, MERCHANT_Y-40
+        game_screen.blit(merchant_image, (MERCHANT_X, MERCHANT_Y))
         if ((player_hitbox.x-MERCHANT_X)**2+(player_hitbox.y-MERCHANT_Y)**2)**(0.5) < 150:
             TALKING_FRAME += 2
             if 0 < TALKING_FRAME <= 50:
@@ -777,16 +853,17 @@ while True:
                                         HEALTH_LEFT.insert(0, red_heart)
                                     GOT_UPGRADE_MERCHANT = [RANDOM_UPGRADE, str(UPGRADE_DATA_DICT[RANDOM_UPGRADE]-1)+" > "+str(UPGRADE_DATA_DICT[RANDOM_UPGRADE])]
                                     MERCHANT_TALK.append("See you next time customer.")
+                                TALKING_FRAME = -100
                             else:
                                 buy_incomplete_sound.play()
                         else:
                             buy_incomplete_sound.play()
                             MERCHANT_TALK[0], MERCHANT_TALK[1], MERCHANT_TALK[2] = "", "", ""
                             MERCHANT_TALK.append("All of your upgrades are already reached MAX levels.")
-                        TALKING_FRAME = -100
+                            TALKING_FRAME = -100
                     elif no_button_hitbox.collidepoint(mouse_pos) and pygame.mouse.get_pressed()[0]:
                         MERCHANT_TALK[0], MERCHANT_TALK[1], MERCHANT_TALK[2] = "", "", ""
-                        MERCHANT_TALK.append("Nevermind, sse you next time.")
+                        MERCHANT_TALK.append("Nevermind, see you next time.")
                         TALKING_FRAME = -100
                     game_screen.blit(l00_coin_button, l00_coin_button_hitbox)
                     game_screen.blit(no_button, no_button_hitbox)
@@ -806,7 +883,6 @@ while True:
                 if TALKING_FRAME == -2:
                     GOT_UPGRADE_MERCHANT = [None, None]
                     GAME_STAGE = 1
-        game_screen.blit(merchant_image, (MERCHANT_X, MERCHANT_Y))
                     
 
     def display_coins():
@@ -1378,6 +1454,271 @@ while True:
         if SHOOT_DELAY_TIME > 0:
             SHOOT_DELAY_TIME -= 1
 
+    def yggdrasil_animate():
+        global YGGDRASIL_FRAME
+        if YGGDRASIL_FRAME >= 1.9:
+            YGGDRASIL_FRAME = 0
+        else:
+            YGGDRASIL_FRAME += 0.1
+
+
+
+
+
+
+
+
+
+    #Story_1 Function Code Zone#
+
+    def skip_cutscene_function():
+        global REAPER_FRAME, BLACK_BG_SWITCH_ALPHA, playing, SKIP_SHOW
+        if skip_button_hitbox.collidepoint(mouse_pos) and pygame.mouse.get_pressed()[0] and SKIP_SHOW:
+                REAPER_FRAME = 1500
+                SKIP_SHOW = False
+        if SKIP_SHOW:
+            game_screen.blit(skip_button_image, skip_button_hitbox)
+
+    def reaper_function():
+        global REAPER_FRAME
+        game_screen.blit(reaper_image, (1050, 350))
+        if 0 < REAPER_FRAME <= 50:
+            TEM_SCALE = REAPER_FRAME
+            TEM_TALK_BOX = pygame.transform.scale(white_talk_box, ((TEM_SCALE+50)*3, TEM_SCALE*3))
+            game_screen.blit(TEM_TALK_BOX, (1030, 200))
+        elif REAPER_FRAME > 50:
+            if REAPER_FRAME < 1500:
+                TEM_TALK_BOX = pygame.transform.scale(white_talk_box, (300, 150))
+                game_screen.blit(TEM_TALK_BOX, (1030, 200))
+            else:
+                TEM_SCALE = abs(REAPER_FRAME - 1550)
+                TEM_TALK_BOX = pygame.transform.scale(white_talk_box, ((TEM_SCALE+50)*3, TEM_SCALE*3))
+                game_screen.blit(TEM_TALK_BOX, (1030, 200))
+
+            """Welcome to HelHelm, or the place you know as Hell."""
+            if REAPER_FRAME < 150:
+                TEM_TEXT = silkscreen_font_ingame.render(REAPER_TALK[0][:min(int(REAPER_FRAME)-50, 20)], True, (0, 0, 0))
+                game_screen.blit(TEM_TEXT, (1050, 230))
+                if REAPER_FRAME > 70:
+                    TEM_TEXT = silkscreen_font_ingame.render(REAPER_TALK[0][20:min(int(REAPER_FRAME)-50, 50)], True, (0, 0, 0))
+                    game_screen.blit(TEM_TEXT, (1050, 250))
+
+                """You, the last living wizard but that doesn't seem to be the case anymore since you're here."""
+            elif REAPER_FRAME < 300:
+                TEM_TEXT = silkscreen_font_ingame.render(REAPER_TALK[1][:min(int(REAPER_FRAME)-150, 28)], True, (0, 0, 0))
+                game_screen.blit(TEM_TEXT, (1050, 230))
+                if REAPER_FRAME > 150+28:
+                    TEM_TEXT = silkscreen_font_ingame.render(REAPER_TALK[1][28:min(int(REAPER_FRAME)-150, 56)], True, (0, 0, 0))
+                    game_screen.blit(TEM_TEXT, (1050, 250))
+                if REAPER_FRAME > 150+56:
+                    TEM_TEXT = silkscreen_font_ingame.render(REAPER_TALK[1][56:min(int(REAPER_FRAME)-150, 79)], True, (0, 0, 0))
+                    game_screen.blit(TEM_TEXT, (1050, 270))
+                if REAPER_FRAME > 150+79:
+                    TEM_TEXT = silkscreen_font_ingame.render(REAPER_TALK[1][79:int(REAPER_FRAME)-150], True, (0, 0, 0))
+                    game_screen.blit(TEM_TEXT, (1050, 290))
+
+                """However, I have a big task for you."""
+            elif REAPER_FRAME < 400:
+                TEM_TEXT = silkscreen_font_ingame.render(REAPER_TALK[2][:min(int(REAPER_FRAME)-300, 31)], True, (0, 0, 0))
+                game_screen.blit(TEM_TEXT, (1050, 230))
+                if REAPER_FRAME > 300+31:
+                    TEM_TEXT = silkscreen_font_ingame.render(REAPER_TALK[2][31:int(REAPER_FRAME)-300], True, (0, 0, 0))
+                    game_screen.blit(TEM_TEXT, (1050, 250))
+
+                """Yggdrasil of Helhelm are broke the border and went straight to Midguard or the place you called The Earth."""
+            elif REAPER_FRAME < 600:
+                TEM_TEXT = silkscreen_font_ingame.render(REAPER_TALK[3][:min(int(REAPER_FRAME)-400, 31)], True, (0, 0, 0))
+                game_screen.blit(TEM_TEXT, (1050, 230))
+                if REAPER_FRAME > 400+31:
+                    TEM_TEXT = silkscreen_font_ingame.render(REAPER_TALK[3][31:min(int(REAPER_FRAME)-400, 63)], True, (0, 0, 0))
+                    game_screen.blit(TEM_TEXT, (1050, 250))
+                if REAPER_FRAME > 400+63:
+                    TEM_TEXT = silkscreen_font_ingame.render(REAPER_TALK[3][63:min(int(REAPER_FRAME)-400, 96)], True, (0, 0, 0))
+                    game_screen.blit(TEM_TEXT, (1050, 270))
+                if REAPER_FRAME > 400+96:
+                    TEM_TEXT = silkscreen_font_ingame.render(REAPER_TALK[3][96:int(REAPER_FRAME)-400], True, (0, 0, 0))
+                    game_screen.blit(TEM_TEXT, (1050, 290))
+
+                """Due to Yggdrasil of Helhelm's thirst for knowledge, he absorbed all the mathematical knowledge of the world."""
+            elif REAPER_FRAME < 800:
+                TEM_TEXT = silkscreen_font_ingame.render(REAPER_TALK[4][:min(int(REAPER_FRAME)-600, 30)], True, (0, 0, 0))
+                game_screen.blit(TEM_TEXT, (1050, 230))
+                if REAPER_FRAME > 600+30:
+                    TEM_TEXT = silkscreen_font_ingame.render(REAPER_TALK[4][30:min(int(REAPER_FRAME)-600, 64)], True, (0, 0, 0))
+                    game_screen.blit(TEM_TEXT, (1050, 250))
+                if REAPER_FRAME > 600+64:
+                    TEM_TEXT = silkscreen_font_ingame.render(REAPER_TALK[4][64:min(int(REAPER_FRAME)-600, 98)], True, (0, 0, 0))
+                    game_screen.blit(TEM_TEXT, (1050, 270))
+                if REAPER_FRAME > 600+98:
+                    TEM_TEXT = silkscreen_font_ingame.render(REAPER_TALK[4][98:int(REAPER_FRAME)-600], True, (0, 0, 0))
+                    game_screen.blit(TEM_TEXT, (1050, 290))
+
+                """Yggdrasil of Helhelm can create his own minions but the subordinates will be made from wood and similar to living things."""
+            elif REAPER_FRAME < 1000:
+                TEM_TEXT = silkscreen_font_ingame.render(REAPER_TALK[5][:min(int(REAPER_FRAME)-800, 32)], True, (0, 0, 0))
+                game_screen.blit(TEM_TEXT, (1050, 230))
+                if REAPER_FRAME > 800+32:
+                    TEM_TEXT = silkscreen_font_ingame.render(REAPER_TALK[5][32:min(int(REAPER_FRAME)-800, 56)], True, (0, 0, 0))
+                    game_screen.blit(TEM_TEXT, (1050, 250))
+                if REAPER_FRAME > 800+56:
+                    TEM_TEXT = silkscreen_font_ingame.render(REAPER_TALK[5][56:min(int(REAPER_FRAME)-800, 87)], True, (0, 0, 0))
+                    game_screen.blit(TEM_TEXT, (1050, 270))
+                if REAPER_FRAME > 800+87:
+                    TEM_TEXT = silkscreen_font_ingame.render(REAPER_TALK[5][87:int(REAPER_FRAME)-800], True, (0, 0, 0))
+                    game_screen.blit(TEM_TEXT, (1050, 290))
+
+                """Therefore, mathemical knowledge must be fought with mathematical knowledge."""
+            elif REAPER_FRAME < 1150:
+                TEM_TEXT = silkscreen_font_ingame.render(REAPER_TALK[6][:min(int(REAPER_FRAME)-1000, 32)], True, (0, 0, 0))
+                game_screen.blit(TEM_TEXT, (1050, 230))
+                if REAPER_FRAME > 1000+32:
+                    TEM_TEXT = silkscreen_font_ingame.render(REAPER_TALK[6][32:min(int(REAPER_FRAME)-1000, 52)], True, (0, 0, 0))
+                    game_screen.blit(TEM_TEXT, (1050, 250))
+                if REAPER_FRAME > 1000+52:
+                    TEM_TEXT = silkscreen_font_ingame.render(REAPER_TALK[6][52:int(REAPER_FRAME)-1000], True, (0, 0, 0))
+                    game_screen.blit(TEM_TEXT, (1050, 270))
+
+                """So I need you because you are the last person who can use magic."""
+            elif REAPER_FRAME < 1300:
+                TEM_TEXT = silkscreen_font_ingame.render(REAPER_TALK[7][:min(int(REAPER_FRAME)-1150, 30)], True, (0, 0, 0))
+                game_screen.blit(TEM_TEXT, (1050, 230))
+                if REAPER_FRAME > 1150+30:
+                    TEM_TEXT = silkscreen_font_ingame.render(REAPER_TALK[7][30:min(int(REAPER_FRAME)-1150, 58)], True, (0, 0, 0))
+                    game_screen.blit(TEM_TEXT, (1050, 250))
+                if REAPER_FRAME > 1150+58:
+                    TEM_TEXT = silkscreen_font_ingame.render(REAPER_TALK[7][58:int(REAPER_FRAME)-1150], True, (0, 0, 0))
+                    game_screen.blit(TEM_TEXT, (1050, 270))
+
+                """Bring Yggdrasil of Helhelm back to Helhelm and release mathematical knowledge back into the world."""
+            elif REAPER_FRAME < 1500:
+                TEM_TEXT = silkscreen_font_ingame.render(REAPER_TALK[8][:min(int(REAPER_FRAME)-1300, 32)], True, (0, 0, 0))
+                game_screen.blit(TEM_TEXT, (1050, 230))
+                if REAPER_FRAME > 1300+32:
+                    TEM_TEXT = silkscreen_font_ingame.render(REAPER_TALK[8][32:min(int(REAPER_FRAME)-1300, 55)], True, (0, 0, 0))
+                    game_screen.blit(TEM_TEXT, (1050, 250))
+                if REAPER_FRAME > 1300+55:
+                    TEM_TEXT = silkscreen_font_ingame.render(REAPER_TALK[8][55:min(int(REAPER_FRAME)-1300, 83)], True, (0, 0, 0))
+                    game_screen.blit(TEM_TEXT, (1050, 270))
+                if REAPER_FRAME > 1300+83:
+                    TEM_TEXT = silkscreen_font_ingame.render(REAPER_TALK[8][83:int(REAPER_FRAME)-1300], True, (0, 0, 0))
+                    game_screen.blit(TEM_TEXT, (1050, 290))
+            elif REAPER_FRAME >= 1550:
+                global BLACK_BG_SWITCH_ALPHA, playing, SKIP_SHOW
+                BLACK_BG_SWITCH_ALPHA = 255
+                playing = "in_game"
+                SKIP_SHOW = True
+        REAPER_FRAME += 1
+
+    #Story_2 Function Code Zone#
+
+    def end_game():
+        global STORY_2_FRAME
+        pygame.draw.rect(story_2_background, (0, 0, 0, 255), [0, 0, 1380, 720])
+        game_screen.blit(story_2_background, (0, 0))
+        TEM_TEXT = story_2_font.render("To be continued."[0:STORY_2_FRAME-525], True, (255, 0, 0))
+        game_screen.blit(TEM_TEXT, (550, 680))
+        if STORY_2_FRAME > 600:
+            TEM_TEXT = game_over_title_font.render("YOU WIN"[0:STORY_2_FRAME-600], True, (255, 247, 111))
+            game_screen.blit(TEM_TEXT, (600, 300))
+            back_to_main_menu_image.set_alpha(STORY_2_FRAME-500)
+            back_to_main_menu_hitbox.x, back_to_main_menu_hitbox.y = 550, 20
+            game_screen.blit(back_to_main_menu_image, back_to_main_menu_hitbox)
+        you_win_award.set_alpha(STORY_2_FRAME-500)
+        game_screen.blit(you_win_award, (200, 200))
+        
+
+    def display_text_story_2():
+        global STORY_2_FRAME
+        if 150 <= STORY_2_FRAME < 300:
+            TEM_TEXT = story_2_font.render("Exactly what I thought, Yggdrasil was too strong"[0:STORY_2_FRAME-150], True, (255, 0, 0))
+            game_screen.blit(TEM_TEXT, (250, 680))
+        elif 300 < STORY_2_FRAME < 450:
+            TEM_TEXT = story_2_font.render("I will lend you a little bit of my power, little kid."[0:STORY_2_FRAME-300], True, (255, 0, 0))
+            game_screen.blit(TEM_TEXT, (250, 680))
+
+    def display_wand_story_2():
+        global STORY_2_FRAME, wand_image_story_2
+        if 450 < STORY_2_FRAME < 525:
+            wand_image_story_2 = reaper_wand_list[int((STORY_2_FRAME-450)/5)]
+        game_screen.blit(wand_image_story_2, (375, 175))
+
+    def display_player_story_2():
+        player_story_2_sprite = falling_player_list[int(player_frame)]
+        game_screen.blit(player_story_2_sprite, (300, 200))
+
+    def front_tile_animation(start_from=0):
+        for i in range(start_from, len(front_rainy_tile_pos)):
+            if front_rainy_tile_pos[i].y > 720:
+                front_rainy_tile.pop(i)
+                front_rainy_tile_pos.pop(i)
+                front_tile_animation(start_from)
+                return
+            front_rainy_tile_pos[i].y += 3
+            TEM_VAR = front_rainy_tile[i]
+            if isinstance(TEM_VAR, int):
+                TEM_TILE_IMAGE = shoot_tile_image_list[TEM_VAR]
+            elif TEM_VAR == "plus":
+                TEM_TILE_IMAGE = shoot_tile_image_list[10]
+            elif TEM_VAR == "minus":
+                TEM_TILE_IMAGE = shoot_tile_image_list[11]
+            elif TEM_VAR == "times":
+                TEM_TILE_IMAGE = shoot_tile_image_list[12]
+            elif TEM_VAR == "obelus":
+                TEM_TILE_IMAGE = shoot_tile_image_list[13]
+            elif TEM_VAR == "equal":
+                TEM_TILE_IMAGE = shoot_tile_image_list[14]
+            game_screen.blit(TEM_TILE_IMAGE, front_rainy_tile_pos[i])
+
+    def back_tile_animation(start_from=0):
+        for i in range(start_from, len(back_rainy_tile)):
+            if back_rainy_tile_pos[i].y > 720:
+                back_rainy_tile.pop(i)
+                back_rainy_tile_pos.pop(i)
+                back_tile_animation(start_from)
+                return
+            back_rainy_tile_pos[i].y += 3
+            TEM_VAR = back_rainy_tile[i]
+            if isinstance(TEM_VAR, int):
+                TEM_TILE_IMAGE = shoot_tile_image_list[TEM_VAR]
+            elif TEM_VAR == "plus":
+                TEM_TILE_IMAGE = shoot_tile_image_list[10]
+            elif TEM_VAR == "minus":
+                TEM_TILE_IMAGE = shoot_tile_image_list[11]
+            elif TEM_VAR == "times":
+                TEM_TILE_IMAGE = shoot_tile_image_list[12]
+            elif TEM_VAR == "obelus":
+                TEM_TILE_IMAGE = shoot_tile_image_list[13]
+            elif TEM_VAR == "equal":
+                TEM_TILE_IMAGE = shoot_tile_image_list[14]
+            game_screen.blit(TEM_TILE_IMAGE, back_rainy_tile_pos[i])
+
+    def spawn_rainy_tile():
+        TEM_RANDOM_TYPE = random.randint(0, 1)
+        TEM_RANDOM_NUM = random.choice(tile_name_list)
+        TILE_TYPE.append(TEM_RANDOM_NUM)
+        if isinstance(TEM_RANDOM_NUM, int):
+            TEM_GET_RECT = shoot_tile_image_list[TEM_RANDOM_NUM].get_rect()
+        elif TEM_RANDOM_NUM == "plus":
+            TEM_GET_RECT = shoot_tile_image_list[10].get_rect()
+        elif TEM_RANDOM_NUM == "minus":
+            TEM_GET_RECT = shoot_tile_image_list[11].get_rect()
+        elif TEM_RANDOM_NUM == "times":
+            TEM_GET_RECT = shoot_tile_image_list[12].get_rect()
+        elif TEM_RANDOM_NUM == "obelus":
+            TEM_GET_RECT = shoot_tile_image_list[13].get_rect()
+        elif TEM_RANDOM_NUM == "equal":
+            TEM_GET_RECT = shoot_tile_image_list[14].get_rect()
+        else:
+            return
+        TEM_GET_RECT.x, TEM_GET_RECT.y = random.randint(0, 1380), -50
+        if TEM_RANDOM_TYPE == 0:
+            back_rainy_tile.append(TEM_RANDOM_NUM)
+            back_rainy_tile_pos.append(TEM_GET_RECT)
+        elif TEM_RANDOM_TYPE == 1:
+            front_rainy_tile.append(TEM_RANDOM_NUM)
+            front_rainy_tile_pos.append(TEM_GET_RECT)
+
+
     #Main Menu Running Zone#
 
     if playing == "main_menu":
@@ -1431,6 +1772,79 @@ while True:
 
         pygame.time.delay(30)
         pygame.display.update()
+
+
+    #Story_1 Running Zone#
+
+    if playing == "story_1":
+        SKIP_SHOW = True
+        player_sprite = right_idle_animate[int(player_frame)]
+        player_hitbox = player_sprite.get_rect()
+        player_hitbox.x, player_hitbox.y = 0, 500
+
+    while playing == "story_1":
+        keys = pygame.key.get_pressed()
+        clock.tick(60)
+        for event in pygame.event.get():
+            ###Exit Game
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+        #Mouse Detection
+        mouse_detect_func()
+        #Player Movement
+        move_speed_set()
+        if keys[pygame.K_w]:
+            player_hitbox.y -= MOVEMENT_SPEED
+            if player_hitbox.y <= 350:
+                player_hitbox.y += MOVEMENT_SPEED
+        if keys[pygame.K_s]:
+            player_hitbox.y += MOVEMENT_SPEED
+            if player_hitbox.y >= 570:
+                player_hitbox.y -= MOVEMENT_SPEED
+        if keys[pygame.K_a]:
+            player_hitbox.x -= MOVEMENT_SPEED
+            if player_hitbox.x <= 0:
+                player_hitbox.x += MOVEMENT_SPEED
+        if keys[pygame.K_d]:
+            player_hitbox.x += MOVEMENT_SPEED
+            if player_hitbox.x >= 950:
+                player_hitbox.x -= MOVEMENT_SPEED
+
+        #Player Animation
+        player_frame_animate()
+        if keys[pygame.K_w] or keys[pygame.K_a] or keys[pygame.K_s] or keys[pygame.K_d]:
+            if mouse_pos[0] <= player_hitbox.x:
+                player_sprite = left_walk_animate[int(player_frame)]
+            elif mouse_pos[0] > player_hitbox.x:
+                player_sprite = right_walk_animate[int(player_frame)]
+        else:
+            if mouse_pos[0] <= player_hitbox.x:
+                player_sprite = left_idle_animate[int(player_frame)]
+            elif mouse_pos[0] > player_hitbox.x:
+                player_sprite = right_idle_animate[int(player_frame)]
+
+        #Reaper Castle Background
+        game_screen.blit(back_reaper_castle, (0, 0))
+
+        #Player Blit
+        game_screen.blit(pygame.transform.scale(player_sprite, (150, 150)), player_hitbox)
+
+        #Reaper Function
+        reaper_function()
+
+        #Reaper Castle Front Background
+        game_screen.blit(front_reaper_castle, (0, 500))
+
+        #Skip Cutscene
+        skip_cutscene_function()
+
+        #Switch Black Scene
+        switch_scene_animation()
+
+        pygame.time.delay(30)
+        pygame.display.update()
+    
 
     #In-Game Running Zone#
     while playing == "in_game" and GAME_STAGE != "game_over":
@@ -1616,7 +2030,7 @@ while True:
                 hydra_head_left = 3
                 creating_enemy("hydra", 1, 0)
                 GAME_ENEMY_COUNT += 1
-            elif GAME_ENEMY_COUNT == 11 and not "hydra" in ENEMY_TYPE:
+            elif GAME_ENEMY_COUNT == 11 and not "hydra" in ENEMY_TYPE and GAME_STAGE != 2:
                 GAME_STAGE = 2
             elif len(ENEMY_TYPE) == 0 and GAME_ENEMY_COUNT <= 10:
                 enemy_spawn_time = 0
@@ -1639,20 +2053,42 @@ while True:
         #Delete Shooting Tile That Out of the Map
         shooting_tile_pos_detect()
 
+        #Yggdrasil Animate
+        yggdrasil_animate()
+
         #Shooting Tile Blit
         for i in range(0, len(SHOOT_TILE_TYPE)):
+            if GAME_STAGE == 2:
+                TEM_TILE_HITBOX = SHOOT_TILE_POS[i]
+                if TEM_TILE_HITBOX.colliderect(bigroot_hitbox):
+                    TEM_TILE_VEL = SHOOT_TILE_VEL[i]
+                    if int(YGGDRASIL_FRAME) == 0:
+                        bigroot_sprite = bigroot_flick_up[int(YGGDRASIL_FRAME)]
+                        SHOOT_TILE_VEL[i] = (abs(SHOOT_TILE_VEL[i][0]), abs(SHOOT_TILE_VEL[i][1]))
+                    elif int(YGGDRASIL_FRAME) == 1:
+                        bigroot_sprite = bigroot_flick_down[int(YGGDRASIL_FRAME)]
+                        SHOOT_TILE_VEL[i] = (abs(SHOOT_TILE_VEL[i][0]), -(abs(SHOOT_TILE_VEL[i][1])))
+                else:
+                    bigroot_sprite = bigroot_move_list[int(YGGDRASIL_FRAME)]
             if SHOOT_TILE_FIRE[i]:
                 display_shoot_flame_tile(i)
             else:
                 make_flame_tile(i)
                 display_shoot_tile(i)
+        if GAME_STAGE == 2 and len(SHOOT_TILE_TYPE) == 0:
+            bigroot_sprite = bigroot_move_list[int(YGGDRASIL_FRAME)]
 
         #Player Sprite Blit
         game_screen.blit(player_sprite, player_hitbox)
 
         #Health Left Check
-        if not red_heart in HEALTH_LEFT:
-            GAME_STAGE = "game_over"
+        if GAME_STAGE == 1:
+            if not red_heart in HEALTH_LEFT:
+                GAME_STAGE = "game_over"
+        elif GAME_STAGE == 2:
+            if not red_heart in HEALTH_LEFT:
+                BLACK_BG_SWITCH_ALPHA = 255
+                playing = "story_2"
 
         #Display Enemy Health
         display_enemy_health()
@@ -1663,11 +2099,14 @@ while True:
         if GAME_STAGE == "trading_event":
             trading_event()
 
+        if GAME_STAGE == 2:
+            yggdrasil_boss()
+
         #Display Got Damage Effect
         display_got_damage_effect()
 
         #Rainy Day
-        if "hydra" in ENEMY_TYPE:
+        if "hydra" in ENEMY_TYPE or GAME_STAGE == 2:
             rainy_day()
             poison_area_animate()
             if hydra_skill_cooldown != 0:
@@ -1793,6 +2232,53 @@ while True:
         display_health()
 
         display_game_over_text()
+
+        pygame.time.delay(30)
+        pygame.display.update()
+
+    #Story_2 Running Zone#
+
+    if playing == "story_2":
+        end_game_theme.play(loops=-1)
+
+    while playing == "story_2":
+        keys = pygame.key.get_pressed()
+        clock.tick(60)
+        for event in pygame.event.get():
+            ###Exit Game
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+        #Mouse Detection
+        mouse_detect_func()
+
+        STORY_2_FRAME += 1
+
+        pygame.draw.rect(story_2_background, (0, 0, 0, 255), [0, 0, 1380, 720])
+        game_screen.blit(story_2_background, (0, 0))
+
+        if RAINY_TILE_COOLDOWN == 0:
+            spawn_rainy_tile()
+            RAINY_TILE_COOLDOWN = 25
+        else:
+            RAINY_TILE_COOLDOWN -= 1
+        back_tile_animation(start_from=0)
+
+        player_frame_animate()
+        display_wand_story_2()
+        display_player_story_2()
+
+        front_tile_animation(start_from=0)
+
+        display_text_story_2()
+
+        #Switch Black Scene
+        switch_scene_animation()
+
+        if STORY_2_FRAME >= 525:
+            end_game()
+        if STORY_2_FRAME >= 600:
+            back_main_menu_button_func()
 
         pygame.time.delay(30)
         pygame.display.update()
